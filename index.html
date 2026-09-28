@@ -249,6 +249,17 @@ details.more[open] summary::before{content:"▾"}
 .tip b{display:block;font-size:16px;line-height:1.2}
 .tip span{display:block;font-size:13px;color:var(--mute)}
 .tip[hidden]{display:none}
+
+/* personalized calories */
+.copts{display:flex;flex-wrap:wrap;gap:8px;padding:2px 14px 10px}
+.cgrid{grid-template-columns:repeat(auto-fit,minmax(84px,1fr))}
+.setting.col{flex-direction:column;align-items:stretch}
+.prof{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+.prof span{display:block;font-size:12px;color:var(--mute);margin-bottom:4px}
+.prof input{width:100%;text-align:center}
+.how{font-size:14px;color:var(--mute);padding:0 0 10px}
+.how p{margin:6px 0}
+.how b{color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
@@ -282,7 +293,7 @@ let S=load();
 const MET_KEYS=['normal','hard'];
 function normalize(){
   S.bodyweight=S.bodyweight||[];
-  S.settings=Object.assign({rest:105,target:null,sound:true,vibrate:true,awake:true,effort:'normal'},S.settings||{});
+  S.settings=Object.assign({rest:105,target:null,sound:true,vibrate:true,awake:true,effort:'normal',sex:null,height:null,birthYear:null,cardioMachine:'treadmill',cardioMode:'calc'},S.settings||{});
   if(!MET_KEYS.includes(S.settings.effort))S.settings.effort='normal';
 }
 normalize();
@@ -387,7 +398,7 @@ function viewWorkout(){
     <div class="row"><div class="grow"><div style="font-weight:600">${fmtDate(last.date)}</div><div class="sub small">${last.exercises.filter(e=>e.sets.some(s=>s.w!=null)).length} exercises · ${Math.round(sessionVolume(last)).toLocaleString()} kg total${last.dur?' · '+Math.round(last.dur/60000)+' min':''}${kcalTxt(lk)?' · '+kcalTxt(lk):''}</div></div></div>
     <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
     ${last.exercises.filter(e=>e.sets.some(s=>s.w!=null)).map(e=>`<div class="row small"><div class="grow">${esc(e.name)}</div><div class="sub">${e.sets.filter(s=>s.w!=null).map(s=>`${s.w}×${s.r}`).join('  ')}</div></div>`).join('')}
-    ${last.cardio?`<div class="row small"><div class="grow">Cardio</div><div class="sub">${cardioLine(last)}</div></div>`:''}
+    ${last.cardio?`<div class="row small"><div class="grow">${cardioName(last.cardio)}</div><div class="sub">${cardioLine(last)}</div></div>`:''}
     </div>
   </div>`:''}
   <h2>Bodyweight</h2>
@@ -403,7 +414,7 @@ function startSession(){
     const n=Math.max(ex.sets, last?last.sets.length:0);
     entries[ex.id]=Array.from({length:n},()=>({w:null,r:null,done:false}));
   }
-  S.active={startedAt:Date.now(),entries,rest:null,cardio:{min:null,kcal:null}};
+  S.active={startedAt:Date.now(),entries,rest:null,cardio:newCardio()};
   save();window.scrollTo(0,0);render();syncWakeLock();unlockAudio();
 }
 function viewActive(){
@@ -500,7 +511,13 @@ function addSet(id){S.active.entries[id].push({w:null,r:null,done:false});save()
 function cancelSession(){askConfirm('Discard workout?','Nothing from this session will be saved.','Discard',()=>{S.active=null;save();cancelBeeps();syncWakeLock();});}
 function finishSession(){
   const exercises=S.program.map(ex=>({exId:ex.id,name:ex.name,sets:(S.active.entries[ex.id]||[]).filter(s=>s.done&&s.w!=null&&s.r!=null).map(s=>({w:s.w,r:s.r}))}));
-  const c=S.active.cardio||{},cardio=(c.min>0||c.kcal>0)?{min:c.min||0,kcal:c.kcal!=null?c.kcal:null}:null;
+  const c=upgradeCardio(S.active.cardio);let cardio=null;
+  if(c.min>0||(c.mode==='machine'&&c.kcal>0)){
+    cardio={machine:c.machine,mode:c.mode,min:c.min||0};
+    if(c.mode==='machine')cardio.kcal=c.kcal!=null?c.kcal:null;
+    else if(c.machine==='bike')cardio.watts=c.watts||null;
+    else{cardio.speed=c.speed||null;cardio.incline=c.incline||0;}
+  }
   if(!exercises.some(e=>e.sets.length)&&!cardio){toast('Log a set or some cardio first');return;}
   const prs=[];
   for(const e of exercises){
@@ -510,7 +527,7 @@ function finishSession(){
     if(prevTop!=null&&top>prevTop)prs.push(e.name);
   }
   const dur=Date.now()-S.active.startedAt;
-  const sess={id:uid(),date:Date.now(),dur,exercises,met:MET[S.settings.effort]};
+  const sess={id:uid(),date:Date.now(),dur,exercises,effort:S.settings.effort};
   if(cardio)sess.cardio=cardio;
   S.sessions.push(sess);
   S.active=null;save();cancelBeeps();syncWakeLock();
@@ -602,62 +619,131 @@ function loadPreset(i){
 }
 
 /* ---------- calories burned ---------- */
-// Lifting: MET × body weight (kg) × hours spent lifting.
-//   Normal 3.5 = "resistance training, multiple exercises, 8-15 reps"; Hard 6 = vigorous weight training.
-// Cardio: the calories you type in (from the machine). Left empty, it's estimated at 6 METs.
-const MET={normal:3.5,hard:6},CARDIO_MET=6;
+// Total burned. Lifting = minutes × [(MET − 1) × 3.5 ml/kg/min × kg ÷ 200 + your resting burn per minute]
+//   MET per exercise, 2024 Adult Compendium of Physical Activities: squat/deadlift 5.0 (02052),
+//   calisthenics such as sit-ups 3.8 (02022), other lifts, "multiple exercises, 8-15 reps", 3.5 (02054).
+//   Hard effort: 6.0 (02050) and 7.5 (02020).
+//   Resting burn: Harris-Benedict from weight, height, age and sex (as in the Compendium's corrected-MET method);
+//   without those, the standard 1 MET = 3.5 ml/kg/min.
+// Treadmill: ACSM walking (under 7 km/h) or running equation from speed + incline.
+// Bike: ACSM leg-cycling equation from watts. 1 litre of oxygen ≈ 5 kcal.
+// "Machine kcal": the machine's number, used as typed.
+function exMet(name,icon,effort){
+  const hard=effort==='hard';
+  if(icon==='squat'||/squat|deadlift/i.test(name))return hard?6:5;
+  if(icon==='situp'||/sit.?up|crunch|plank|push.?up|pull.?up|chin.?up|\bdips?\b|lunge|burpee/i.test(name))return hard?7.5:3.8;
+  return hard?6:3.5;
+}
 function bwAt(t){
   let best=null,first=null;
   for(const b of S.bodyweight){if(!first||b.date<first.date)first=b;if(b.date<=t&&(!best||b.date>best.date))best=b;}
   const e=best||first;return e?e.w:null;
 }
-function cardioKcal(c,kg){if(!c)return 0;if(c.kcal!=null)return c.kcal;return c.min&&kg?Math.round(CARDIO_MET*kg*c.min/60):0;}
+function rmrDay(kg,t){
+  const st=S.settings;if(!kg||!st.sex||!st.height||!st.birthYear)return null;
+  const age=new Date(t).getFullYear()-st.birthYear;
+  return st.sex==='f'?655.0955+1.8496*st.height+9.5634*kg-4.6756*age:66.4730+5.0033*st.height+13.7516*kg-6.7550*age;
+}
+const restPerMin=(kg,t)=>{const r=rmrDay(kg,t);return r!=null?r/1440:3.5*kg/200;};
+function liftPerMin(exs,effort,kg,t){
+  let n=0,m=0;
+  for(const e of exs){const k=e.sets.length;if(!k)continue;const p=S.program.find(x=>x.id===e.exId);m+=k*exMet(e.name,p&&p.icon,effort);n+=k;}
+  const met=n?m/n:(effort==='hard'?6:3.5);
+  return (met-1)*3.5*kg/200+restPerMin(kg,t);
+}
+function cardioCalc(c,t){
+  if(!c||!(c.min>0||c.kcal>0))return {kcal:0};
+  const kg=bwAt(t),min=c.min||0,mode=c.mode||(c.kcal!=null?'machine':'guess');
+  if(mode==='machine'&&c.kcal!=null)return {kcal:Math.round(c.kcal)};
+  if(!kg||!min)return {kcal:0,need:kg?'min':'kg'};
+  let act,approx=false; // oxygen cost above rest, ml/kg/min
+  if(mode==='calc'&&c.machine==='bike'){if(!c.watts)return {kcal:0,need:'watts'};act=3.5+1.8*c.watts*6.12/kg;}
+  else if(mode==='calc'){if(!c.speed)return {kcal:0,need:'speed'};const v=c.speed*1000/60,g=(c.incline||0)/100;act=c.speed<7?0.1*v+1.8*v*g:0.2*v+0.9*v*g;}
+  else{act=(6-1)*3.5;approx=true;} // no number typed: rough guess at moderate cardio
+  return {kcal:Math.round(min*(act*kg/200+restPerMin(kg,t))),approx};
+}
 function sessionKcal(s){
-  const kg=bwAt(s.date),cm=(s.cardio&&s.cardio.min)||0,sets=s.exercises.some(e=>e.sets.length);
+  const kg=bwAt(s.date),c=s.cardio,cm=(c&&c.min)||0;
+  const n=s.exercises.reduce((a,e)=>a+e.sets.length,0);
   const dur=s.dur||planFor(s.exercises.map(e=>e.sets.length),true).total*1000; // older workouts: estimated length
-  const lift=kg&&sets?Math.round((s.met||MET[S.settings.effort]||3.5)*kg*Math.max(0,dur/3.6e6-cm/60)):0;
-  const cardio=cardioKcal(s.cardio,kg);
-  return {lift,cardio,total:lift+cardio,approx:!s.dur||(cm>0&&s.cardio.kcal==null),kg};
+  const effort=s.effort||(s.met>=6?'hard':'normal');
+  const lift=kg&&n?Math.round(Math.max(0,dur/6e4-cm)*liftPerMin(s.exercises,effort,kg,s.date)):0;
+  const cc=cardioCalc(c,s.date);
+  return {lift,cardio:cc.kcal,total:lift+cc.kcal,approx:!s.dur||!!cc.approx,kg};
 }
 function activeKcal(){
-  const kg=bwAt(Date.now()),c=S.active.cardio||{},cm=c.min||0;
-  const h=Math.max(0,(Date.now()-S.active.startedAt)/3.6e6-cm/60);
-  const lift=kg?MET[S.settings.effort]*kg*h:0,cardio=cardioKcal(c,kg);
-  return {lift,cardio,total:lift+cardio,kg};
+  const t=Date.now(),kg=bwAt(t),c=S.active.cardio||{},cm=c.min||0;
+  const done=S.program.map(ex=>({exId:ex.id,name:ex.name,sets:(S.active.entries[ex.id]||[]).filter(s=>s.done)}));
+  const mix=done.some(e=>e.sets.length)?done:S.program.map(ex=>({exId:ex.id,name:ex.name,sets:S.active.entries[ex.id]||[]}));
+  const lift=kg?Math.max(0,(t-S.active.startedAt)/6e4-cm)*liftPerMin(mix,S.settings.effort,kg,t):0;
+  const cc=cardioCalc(c,t);
+  return {lift,cardio:cc.kcal,total:lift+cc.kcal,kg,cc};
 }
 const kcalTxt=k=>k&&k.total?`${k.approx?'≈':''}${Math.round(k.total).toLocaleString()} kcal`:'';
-const cardioHint=(c,kg)=>kg&&c.min?'≈ '+cardioKcal({min:c.min},kg):'from the machine';
+const cardioName=c=>c&&c.machine==='bike'?'Bike':c&&c.machine==='treadmill'?'Treadmill':'Cardio';
 function cardioLine(s){
   const c=s.cardio;if(!c)return '';
-  const k=c.kcal!=null?c.kcal:sessionKcal(s).cardio;
-  return `${c.min||0} min`+(k?` · ${c.kcal!=null?'':'≈'}${k} kcal`:'');
+  const cc=cardioCalc(c,s.date);
+  const det=c.mode==='calc'?(c.machine==='bike'?(c.watts?` · ${c.watts} W`:''):(c.speed?` · ${fmtKg(c.speed)} km/h${c.incline?`, ${fmtKg(c.incline)}%`:''}`:'')):'';
+  return `${c.min||0} min${det}${cc.kcal?` · ${cc.approx?'≈':''}${cc.kcal} kcal`:''}`;
+}
+const newCardio=()=>({machine:S.settings.cardioMachine||'treadmill',mode:S.settings.cardioMode||'calc',min:null,speed:null,incline:null,watts:null,kcal:null});
+function upgradeCardio(c){ // workouts started before this version stored only {min,kcal}
+  c=c||{};if(c.machine)return c;
+  const typed=c.kcal!=null;c=Object.assign(newCardio(),c);if(typed)c.mode='machine';return c;
 }
 function cardioCard(){
-  const c=S.active.cardio||(S.active.cardio={min:null,kcal:null}),kg=bwAt(Date.now());
-  return `<div class="ex">
+  const c=S.active.cardio=upgradeCardio(S.active.cardio),kg=bwAt(Date.now());
+  const seg=(k,v,l)=>`<button class="${c[k]===v?'on':''}" aria-pressed="${c[k]===v}" onclick="setCardio('${k}','${v}')">${l}</button>`;
+  const inp=(k,l,im)=>`<label><span>${l}</span><input type="number" inputmode="${im}" step="any" data-k="${k}" value="${c[k]??''}" oninput="onCardio(this)" onkeydown="cardioKey(event,this)"></label>`;
+  const fields=c.mode==='machine'?inp('kcal','Calories (kcal)','numeric'):c.machine==='bike'?inp('watts','Watts','numeric'):inp('speed','Speed, km/h','decimal')+inp('incline','Incline, %','decimal');
+  return `<div class="ex" id="cardioCard">
     <header>${iconOf({icon:'cardio'})}<div class="name">Cardio</div><div class="goal">after weights</div></header>
-    <div class="cgrid">
-      <label><span>Minutes</span><input type="number" inputmode="numeric" id="cMin" value="${c.min??''}" placeholder="0" enterkeyhint="next" oninput="onCardio()" onkeydown="if(event.key==='Enter'){event.preventDefault();$('cKcal').focus()}"></label>
-      <label><span>Calories (kcal)</span><input type="number" inputmode="numeric" id="cKcal" value="${c.kcal??''}" placeholder="${cardioHint(c,kg)}" enterkeyhint="done" oninput="onCardio()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></label>
+    <div class="copts">
+      <div class="seg" role="group" aria-label="Machine">${seg('machine','treadmill','Treadmill')}${seg('machine','bike','Bike')}</div>
+      <div class="seg" role="group" aria-label="Count calories from">${seg('mode','calc','Settings')}${seg('mode','machine','Machine kcal')}</div>
     </div>
+    <div class="cgrid">${inp('min','Minutes','numeric')}${fields}</div>
     <div class="cnote" id="cNote"></div>
     ${kg?'':`<div style="padding:0 14px 12px"><button class="btn block" onclick="openBw()">Add your weight to count calories</button></div>`}
   </div>`;
 }
-function onCardio(){
+function setCardio(k,v){
   if(!S.active)return;
-  const c=S.active.cardio||(S.active.cardio={});
-  c.min=num($('cMin').value);c.kcal=num($('cKcal').value);save();
-  $('cKcal').placeholder=cardioHint(c,bwAt(Date.now()));
-  paintBar();
+  const c=S.active.cardio=upgradeCardio(S.active.cardio);c[k]=v;
+  if(k==='machine')S.settings.cardioMachine=v;
+  if(k==='mode')S.settings.cardioMode=v;
+  save();const el=$('cardioCard');if(el)el.outerHTML=cardioCard();paintBar();
+}
+function onCardio(el){
+  if(!S.active)return;
+  const c=S.active.cardio=upgradeCardio(S.active.cardio);
+  c[el.dataset.k]=num(el.value);save();paintBar();
+}
+function cardioKey(e,el){
+  if(e.key!=='Enter')return;
+  e.preventDefault();
+  const ins=[...$('cardioCard').querySelectorAll('input')],i=ins.indexOf(el);
+  if(i<ins.length-1)ins[i+1].focus();else el.blur();
 }
 function paintCardioNote(k){
   const el=$('cNote');if(!el)return;
   if(!k.kg){el.textContent='Calories need your body weight.';return;}
-  const c=S.active.cardio||{};
-  el.textContent=`Burned so far ≈ ${Math.round(k.lift)} lifting`+(k.cardio?` + ${Math.round(k.cardio)} cardio${c.kcal==null?' (estimate)':''}`:'')+` = ${Math.round(k.total)} kcal`;
+  const c=S.active.cardio||{},cc=k.cc||{};
+  let hint='';
+  if(c.min>0&&!cc.kcal)hint=cc.need==='watts'?' · add watts to count the bike':cc.need==='speed'?' · add speed to count the treadmill':'';
+  else if(cc.approx)hint=' · cardio is a rough guess until you type the machine number';
+  if(rmrDay(k.kg,Date.now())==null)hint+=' · add age, height and sex in More to make it personal';
+  el.textContent=`Burned so far ≈ ${Math.round(k.lift)} lifting`+(cc.kcal?` + ${cc.kcal} cardio`:'')+` = ${Math.round(k.total)} kcal`+hint;
 }
 function setEffort(e){S.settings.effort=e;save();render();}
+function setProfile(k,v){
+  const st=S.settings,n=num(v);
+  if(k==='age')st.birthYear=n>=10&&n<=100?new Date().getFullYear()-Math.round(n):null;
+  if(k==='height')st.height=n>=100&&n<=250?Math.round(n):null;
+  if(k==='sex')st.sex=v==='m'||v==='f'?v:null;
+  save();render();
+}
 
 /* ---------- PROGRESS ---------- */
 const DAY=864e5,round=n=>Math.round(n*10)/10;
@@ -895,6 +981,8 @@ window.addEventListener('scroll',hideTip,{passive:true});
 /* ---------- MORE: history, backup ---------- */
 function viewMore(){
   const st=S.settings,auto=Math.round(planFor(programCounts(),true).total/60),bws=sortedBw(),bwNow=bws[bws.length-1];
+  const hard=st.effort==='hard',rmr=bwNow?rmrDay(bwNow.w,Date.now()):null;
+  const perHour=bwNow&&S.program.length?Math.round(60*liftPerMin(S.program.map(ex=>({exId:ex.id,name:ex.name,sets:Array(ex.sets).fill(0)})),st.effort,bwNow.w,Date.now())):null;
   return `<h1>More</h1>
   <h2>Timers</h2>
   <div class="card" style="padding:2px 14px">
@@ -926,16 +1014,29 @@ function viewMore(){
       <div class="t"><div>Your weight</div><div>${bwNow?`${fmtKg(bwNow.w)} kg · logged ${shortDate(bwNow.date)}`:'Needed to count calories'}</div></div>
       <button class="btn" onclick="openBw()">Log weight</button>
     </div>
+    <div class="setting col">
+      <div class="t"><div>About you</div><div>${rmr?`Resting burn ≈ ${Math.round(rmr).toLocaleString()} kcal a day`:'Makes the estimate personal to you'}</div></div>
+      <div class="prof">
+        <label><span>Age</span><input type="number" inputmode="numeric" placeholder="years" value="${st.birthYear?new Date().getFullYear()-st.birthYear:''}" onchange="setProfile('age',this.value)" aria-label="Age"></label>
+        <label><span>Height</span><input type="number" inputmode="numeric" placeholder="cm" value="${st.height??''}" onchange="setProfile('height',this.value)" aria-label="Height in centimetres"></label>
+        <div><span>Sex</span><div class="seg" role="group" aria-label="Sex"><button class="${st.sex==='m'?'on':''}" aria-pressed="${st.sex==='m'}" onclick="setProfile('sex','m')">Male</button><button class="${st.sex==='f'?'on':''}" aria-pressed="${st.sex==='f'}" onclick="setProfile('sex','f')">Female</button></div></div>
+      </div>
+    </div>
     <div class="setting">
       <div class="t"><div>Lifting effort</div><div>Hard = heavy weights, short rests</div></div>
       <div class="seg" role="group" aria-label="Lifting effort"><button class="${st.effort==='normal'?'on':''}" aria-pressed="${st.effort==='normal'}" onclick="setEffort('normal')">Normal</button><button class="${st.effort==='hard'?'on':''}" aria-pressed="${st.effort==='hard'}" onclick="setEffort('hard')">Hard</button></div>
     </div>
-    <div class="setting"><div class="t"><div>How it's counted</div><div>Lifting ≈ ${MET[st.effort]} × your kg × hours of lifting${bwNow?`, about ${Math.round(MET[st.effort]*bwNow.w)} kcal an hour for you`:''}. Cardio uses the calories you type in; left empty, it's estimated.</div></div></div>
+    <details class="more"><summary>How it's counted${perHour?` · about ${perHour} kcal an hour of lifting for you`:''}</summary><div class="how">
+      <p><b>Lifting:</b> each exercise gets an effort value from the 2024 Compendium of Physical Activities: squats and deadlifts ${hard?6:5}, sit-ups and other body-weight moves ${hard?7.5:3.8}, other lifts ${hard?6:3.5}. That's multiplied by your weight and the time you spent lifting${rmr?', using your own resting burn (Harris-Benedict equation) instead of the standard one':''}.</p>
+      <p><b>Treadmill:</b> the ACSM walking formula under 7 km/h and the running formula from 7 km/h, from your speed and incline.</p>
+      <p><b>Bike:</b> the ACSM cycling formula, from the watts on the screen.</p>
+      <p><b>Machine kcal:</b> the number you type, used as it is. Machine readouts can be 20–30% off either way.</p>
+    </div></details>
   </div>
   <h2>History</h2>
   <div style="margin:0 0 14px">
   ${S.sessions.length?[...S.sessions].reverse().map(s=>`<div class="hist">
-    <div><div class="d">${fmtDate(s.date)} <span class="sub" style="font-weight:500">${[s.dur?Math.round(s.dur/60000)+' min':'',kcalTxt(sessionKcal(s))].filter(Boolean).map(x=>'· '+x).join(' ')}</span></div><div class="m">${[...s.exercises.filter(e=>e.sets.length).map(e=>esc(e.name)+' '+e.sets.map(t=>`${t.w}×${t.r}`).join(' ')),...(s.cardio?['Cardio '+cardioLine(s)]:[])].join(' · ')}</div></div>
+    <div><div class="d">${fmtDate(s.date)} <span class="sub" style="font-weight:500">${[s.dur?Math.round(s.dur/60000)+' min':'',kcalTxt(sessionKcal(s))].filter(Boolean).map(x=>'· '+x).join(' ')}</span></div><div class="m">${[...s.exercises.filter(e=>e.sets.length).map(e=>esc(e.name)+' '+e.sets.map(t=>`${t.w}×${t.r}`).join(' ')),...(s.cardio?[cardioName(s.cardio)+' '+cardioLine(s)]:[])].join(' · ')}</div></div>
     <button class="icon" onclick="delSession('${s.id}')" aria-label="Delete session">✕</button>
   </div>`).join(''):'<div class="sub">No workouts logged yet.</div>'}
   </div>

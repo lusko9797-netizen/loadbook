@@ -81,9 +81,60 @@ nav button.on{color:var(--gold)}
 .set .done{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);margin-left:auto;display:grid;place-items:center;color:var(--dim)}
 .set .done.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
 .ex .addset{padding:0 14px 12px;color:var(--mute);font-size:14px;font-weight:500}
-.totalbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 10px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);margin-bottom:12px}
-.totalbar .v{font-size:28px;font-weight:700}
-.totalbar .v span{font-size:15px;color:var(--mute);font-weight:500;margin-left:3px}
+.set.isdone .n{color:var(--gold)}
+
+/* workout timer bar */
+.wbar{position:sticky;top:0;z-index:5;background:var(--bg);margin:calc(-14px - var(--sat)) -16px 12px;padding:calc(var(--sat) + 10px) 16px 10px;border-bottom:1px solid var(--line);transition:border-color .3s}
+.wtop{display:flex;align-items:center;gap:10px}
+.wclock{font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;transition:color .3s}
+.wbar .btn{padding:9px 16px}
+.wpace{font-size:14px;font-weight:600;padding:6px 10px;border-radius:999px;background:rgba(87,184,162,.14);color:var(--teal);white-space:nowrap}
+.wtrack{position:relative;height:10px;border-radius:999px;background:var(--line);margin-top:12px;transition:box-shadow .3s}
+.wfill{position:absolute;left:0;top:0;bottom:0;max-width:100%;border-radius:999px;background:var(--gold);transition:width .25s linear,background-color .3s}
+#wTicks i{position:absolute;top:2px;bottom:2px;width:2px;margin-left:-1px;border-radius:1px;background:var(--dim)}
+#wTicks i.d{background:var(--teal)}
+#wTicks i.nx{top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:var(--ink)}
+.wmeta{color:var(--mute);font-size:14px;margin-top:8px}
+.wbar.behind{border-bottom-color:rgba(217,105,79,.6)}
+.wbar.behind .wclock{color:var(--red)}
+.wbar.behind .wpace{background:rgba(217,105,79,.16);color:var(--red)}
+.wbar.behind .wfill{background:var(--red)}
+.wbar.behind .wtrack{box-shadow:0 0 0 1px var(--red),0 0 14px 3px rgba(217,105,79,.55);animation:glow 1.4s ease-in-out infinite}
+.wbar.done .wpace{background:rgba(230,180,69,.16);color:var(--gold)}
+@keyframes glow{50%{box-shadow:0 0 0 1px var(--red),0 0 26px 8px rgba(217,105,79,.85)}}
+
+/* rest timer */
+.rest{position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:540px;bottom:calc(var(--sab) + 78px);z-index:9;background:#232b33;border:1px solid var(--line);border-radius:16px;padding:10px 10px 10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.rest[hidden]{display:none}
+.rtop{display:flex;align-items:center;gap:6px}
+.rlabel{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.rclock{font-size:34px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.rb{min-width:50px;height:44px;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-weight:600;font-size:16px}
+.rb:active{transform:scale(.95)}
+.rtrack{height:5px;border-radius:999px;background:var(--line);margin-top:9px;overflow:hidden}
+.rfill{height:100%;background:var(--teal);border-radius:999px;transition:width .25s linear}
+.rnext{margin-top:7px;font-size:14px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rest.over{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);animation:ring .45s ease-in-out 4}
+.rest.over .rlabel,.rest.over .rnext{color:var(--gold-ink);opacity:.8}
+.rest.over .rb{background:rgba(0,0,0,.12);border-color:transparent;color:var(--gold-ink)}
+.rest.over .rb.adj,.rest.over .rtrack{display:none}
+@keyframes ring{50%{transform:translateX(-50%) scale(1.03)}}
+body.resting #app{padding-bottom:calc(var(--sab) + 190px)}
+body.resting .toast{bottom:calc(var(--sab) + 190px)}
+
+/* settings */
+.setting{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.setting:last-child{border-bottom:0}
+.setting .t{flex:1}
+.setting .t div+div{color:var(--mute);font-size:14px}
+.setting input{width:74px;text-align:center}
+.sw{width:50px;height:30px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:transform .2s}
+.sw[aria-checked=true]{background:var(--gold)}
+.sw[aria-checked=true]::after{transform:translateX(20px);background:var(--gold-ink)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper b{min-width:46px;text-align:center;font-size:19px;font-variant-numeric:tabular-nums}
+.icon.out{border:1px solid var(--line);color:var(--ink)}
 
 /* program list */
 .pitem{display:flex;align-items:center;gap:10px;padding:12px 4px 12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
@@ -107,7 +158,7 @@ nav button.on{color:var(--gold)}
 .modal .sheet{background:var(--panel);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(var(--sab) + 18px)}
 .sheet h2{margin:0 0 14px}
 label.f{display:block;color:var(--mute);font-size:14px;margin-bottom:4px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--sab) + 90px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;z-index:30;animation:pop .2s}
+.toast{position:fixed;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 32px);text-align:center;bottom:calc(var(--sab) + 90px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;z-index:30;animation:pop .2s}
 @keyframes pop{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 .empty{padding:28px 18px;text-align:center;color:var(--mute);border:1px dashed var(--line);border-radius:14px}
 .empty b{display:block;color:var(--ink);font-size:19px;margin-bottom:6px}
@@ -116,6 +167,16 @@ label.f{display:block;color:var(--mute);font-size:14px;margin-bottom:4px}
 </head>
 <body>
 <div id="app"></div>
+<div id="rest" class="rest" hidden>
+  <div class="rtop">
+    <div class="grow"><div class="rlabel" id="rLabel">Rest</div><div class="rclock" id="rClock" role="timer">0:00</div></div>
+    <button class="rb adj" onclick="adjustRest(-15)" aria-label="15 seconds less">−15</button>
+    <button class="rb adj" onclick="adjustRest(15)" aria-label="15 seconds more">+15</button>
+    <button class="rb" id="rSkip" onclick="skipRest()">Skip</button>
+  </div>
+  <div class="rtrack"><div class="rfill" id="rFill"></div></div>
+  <div class="rnext" id="rNext"></div>
+</div>
 <nav id="nav"></nav>
 
 <script>
@@ -131,7 +192,11 @@ function save(){
   try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
 }
 let S=load();
-S.bodyweight=S.bodyweight||[];
+function normalize(){
+  S.bodyweight=S.bodyweight||[];
+  S.settings=Object.assign({rest:105,target:null,sound:true,vibrate:true,awake:true},S.settings||{});
+}
+normalize();
 
 
 /* ---------- exercise pictograms (original, inline SVG) ---------- */
@@ -165,6 +230,8 @@ const shortDate=d=>new Date(d).toLocaleDateString(undefined,{day:'numeric',month
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dayStart=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
 const num=v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
+const $=id=>document.getElementById(id);
+const mmss=x=>{x=Math.max(0,Math.floor(x+1e-6));const h=Math.floor(x/3600),m=Math.floor(x%3600/60),sec=String(x%60).padStart(2,'0');return h?`${h}:${String(m).padStart(2,'0')}:${sec}`:`${m}:${sec}`;};
 let tab='workout', progressEx=null, modal=null;
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),1600);}
 
@@ -194,6 +261,7 @@ function render(){
   app.innerHTML = tab==='workout'?viewWorkout():tab==='progress'?viewProgress():tab==='program'?viewProgram():viewMore();
   renderNav();
   if(modal) app.insertAdjacentHTML('beforeend',modal);
+  tickSig='';paintBar();paintRest();ensureTicker();
 }
 function renderNav(){
   const items=[
@@ -212,6 +280,7 @@ function viewWorkout(){
   const nw=nextWorkoutInfo();
   const last=S.sessions[S.sessions.length-1];
   const lastBw=S.bodyweight[S.bodyweight.length-1];
+  const plan=planFor(programCounts());
   return `
   <div class="hero">
     <div class="sub">${new Date().toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'})}</div>
@@ -220,11 +289,11 @@ function viewWorkout(){
   </div>
   <div class="stack" style="margin-top:18px">
     <button class="btn gold block" style="padding:16px;font-size:19px" onclick="startSession()" ${S.program.length?'':'disabled'}>Start full-body workout</button>
-    ${S.program.length?'':'<div class="sub small" style="text-align:center">Add exercises in Program first.</div>'}
+    <div class="sub small" style="text-align:center">${S.program.length?`${S.program.length} exercises · ${plan.ends.length} sets · about ${Math.round(plan.total/60)} min · ${mmss(S.settings.rest)} rest`:'Add exercises in Program first.'}</div>
   </div>
   ${last?`<h2>Last session</h2>
   <div class="card">
-    <div class="row"><div class="grow"><div style="font-weight:600">${fmtDate(last.date)}</div><div class="sub small">${last.exercises.filter(e=>e.sets.some(s=>s.w!=null)).length} exercises · ${Math.round(sessionVolume(last)).toLocaleString()} kg total</div></div></div>
+    <div class="row"><div class="grow"><div style="font-weight:600">${fmtDate(last.date)}</div><div class="sub small">${last.exercises.filter(e=>e.sets.some(s=>s.w!=null)).length} exercises · ${Math.round(sessionVolume(last)).toLocaleString()} kg total${last.dur?' · '+Math.round(last.dur/60000)+' min':''}</div></div></div>
     <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
     ${last.exercises.filter(e=>e.sets.some(s=>s.w!=null)).map(e=>`<div class="row small"><div class="grow">${esc(e.name)}</div><div class="sub">${e.sets.filter(s=>s.w!=null).map(s=>`${s.w}×${s.r}`).join('  ')}</div></div>`).join('')}
     </div>
@@ -242,15 +311,19 @@ function startSession(){
     const n=Math.max(ex.sets, last?last.sets.length:0);
     entries[ex.id]=Array.from({length:n},()=>({w:null,r:null,done:false}));
   }
-  S.active={startedAt:Date.now(),entries};
-  save();render();
+  S.active={startedAt:Date.now(),entries,rest:null};
+  save();window.scrollTo(0,0);render();syncWakeLock();unlockAudio();
 }
 function viewActive(){
-  const vol=activeVolume();
   return `
-  <div class="totalbar">
-    <div><div class="sub small">Session volume</div><div class="v">${Math.round(vol).toLocaleString()}<span>kg</span></div></div>
-    <button class="btn gold" onclick="finishSession()">Finish</button>
+  <div class="wbar" id="wbar">
+    <div class="wtop">
+      <div class="wclock grow" id="wClock" role="timer">0:00</div>
+      <div class="wpace" id="wPace">On pace</div>
+      <button class="btn gold" onclick="finishSession()">Finish</button>
+    </div>
+    <div class="wtrack" aria-hidden="true"><div class="wfill" id="wFill"></div><div id="wTicks"></div></div>
+    <div class="wmeta"><span id="wSets"></span> · <span id="wVol"></span> · <span id="wTarget"></span></div>
   </div>
   ${S.program.map(ex=>{
     const last=lastSessionFor(ex.id);
@@ -261,35 +334,77 @@ function viewActive(){
       ${sets.map((s,i)=>{
         const L=last&&last.sets[i]&&last.sets[i].w!=null?last.sets[i]:null;
         const beat=L&&s.w!=null&&s.r!=null&&(s.w>L.w||(s.w===L.w&&s.r>L.r));
-        return `<div class="set">
+        const att=`data-ex="${ex.id}" data-i="${i}" oninput="onSetInput(this)" onchange="onSetCommit(this)" onkeydown="onSetKey(event,this)"`;
+        return `<div class="set${s.done?' isdone':''}" id="set-${ex.id}-${i}">
           <div class="n">${i+1}</div>
           <div class="last">${L?`<b>${L.w}</b> × <b>${L.r}</b>`:'<span style="color:var(--dim)">—</span>'}</div>
-          <input type="number" inputmode="decimal" step="0.5" class="${beat?'beat':''}" placeholder="${L?L.w:''}" value="${s.w??''}" onchange="setVal('${ex.id}',${i},'w',this.value)">
-          <input type="number" inputmode="numeric" class="${beat?'beat':''}" placeholder="${L?L.r:ex.reps}" value="${s.r??''}" onchange="setVal('${ex.id}',${i},'r',this.value)">
-          <button class="done ${s.done?'on':''}" onclick="toggleDone('${ex.id}',${i})" aria-label="Set done">✓</button>
+          <input type="number" inputmode="decimal" step="any" enterkeyhint="next" data-k="w" ${att} aria-label="Set ${i+1} weight in kg" class="${beat?'beat':''}" placeholder="${L?L.w:''}" value="${s.w??''}">
+          <input type="number" inputmode="numeric" enterkeyhint="done" data-k="r" ${att} aria-label="Set ${i+1} reps" class="${beat?'beat':''}" placeholder="${L?L.r:ex.reps}" value="${s.r??''}">
+          <button class="done ${s.done?'on':''}" onclick="toggleDone('${ex.id}',${i})" aria-label="Set ${i+1} done">✓</button>
         </div>`;}).join('')}
       <button class="addset" onclick="addSet('${ex.id}')">+ Add set</button>
     </div>`;}).join('')}
   <button class="btn ghost danger block" onclick="cancelSession()">Discard workout</button>`;
 }
-function setVal(id,i,k,v){
-  const s=S.active.entries[id][i]; s[k]=num(v);
-  if(s.w!=null&&s.r!=null&&!s.done) s.done=true;
-  save();render();
+
+/* Logging a set. Typing updates the page in place (no full re-render),
+   so the keyboard stays open. A set counts as done once it has weight and reps:
+   when you leave the field, press Done, tap ✓, or stop typing for 1.5 s. */
+let commitT=null,lastCommit={key:'',t:0};
+const rowEl=(id,i)=>$(`set-${id}-${i}`);
+function paintSet(id,i){
+  const row=rowEl(id,i),s=S.active&&S.active.entries[id]&&S.active.entries[id][i];if(!row||!s)return;
+  const last=lastSessionFor(id),L=last&&last.sets[i]&&last.sets[i].w!=null?last.sets[i]:null;
+  const beat=!!(L&&s.w!=null&&s.r!=null&&(s.w>L.w||(s.w===L.w&&s.r>L.r)));
+  row.querySelectorAll('input').forEach(x=>x.classList.toggle('beat',beat));
+  row.querySelector('.done').classList.toggle('on',!!s.done);
+  row.classList.toggle('isdone',!!s.done);
+}
+function onSetInput(el){
+  const id=el.dataset.ex,i=+el.dataset.i,s=S.active&&S.active.entries[id]&&S.active.entries[id][i];if(!s)return;
+  s[el.dataset.k]=num(el.value);save();paintSet(id,i);paintBar();
+  clearTimeout(commitT);commitT=setTimeout(()=>commitSet(id,i,true),1500);
+}
+function onSetCommit(el){clearTimeout(commitT);commitSet(el.dataset.ex,+el.dataset.i,false);}
+function onSetKey(e,el){
+  if(e.key!=='Enter')return;
+  e.preventDefault();
+  if(el.dataset.k==='w'){const r=el.parentNode.querySelectorAll('input')[1];if(r)r.focus();}
+  else el.blur();
+}
+function commitSet(id,i,idle){
+  const s=S.active&&S.active.entries[id]&&S.active.entries[id][i];if(!s)return;
+  if(s.w!=null&&s.r!=null&&!s.done){
+    s.done=true;lastCommit={key:id+'|'+i,t:Date.now()};
+    save();paintSet(id,i);paintBar();startRest(id+'|'+i);
+    // close the keyboard so the rest timer is visible
+    const a=document.activeElement;
+    if(idle&&a&&a.dataset&&a.dataset.ex===id&&+a.dataset.i===i)a.blur();
+  }
 }
 function toggleDone(id,i){
-  const s=S.active.entries[id][i];
-  if(!s.done&&(s.w==null||s.r==null)){
-    // tapping ✓ with empty fields copies last session's numbers
-    const ex=S.program.find(e=>e.id===id); const last=lastSessionFor(id);
-    if(last&&last.sets[i]){s.w=s.w??last.sets[i].w;s.r=s.r??last.sets[i].r;}
-    else{s.r=s.r??ex.reps;}
-    if(s.w==null){toast('Enter a weight first');render();return;}
+  if(!S.active)return;
+  const s=S.active.entries[id][i],row=rowEl(id,i),key=id+'|'+i;
+  clearTimeout(commitT);
+  if(s.done){
+    if(lastCommit.key===key&&Date.now()-lastCommit.t<700)return; // this same tap already completed it
+    s.done=false;save();paintSet(id,i);paintBar();
+    const r=S.active.rest;if(r&&r.key===key&&!r.alerted)skipRest();
+    return;
   }
-  s.done=!s.done;save();render();
+  if(s.w==null||s.r==null){
+    // tapping ✓ with empty fields copies last session's numbers
+    const ex=S.program.find(e=>e.id===id),last=lastSessionFor(id),L=last&&last.sets[i];
+    if(L){if(s.w==null)s.w=L.w;if(s.r==null)s.r=L.r;}
+    else if(s.r==null&&ex)s.r=ex.reps;
+    if(row){const [wi,ri]=row.querySelectorAll('input');wi.value=s.w??'';ri.value=s.r??'';}
+    if(s.w==null){save();paintSet(id,i);toast('Enter a weight first');if(row)row.querySelector('input').focus();return;}
+  }
+  s.done=true;lastCommit={key,t:Date.now()};
+  save();paintSet(id,i);paintBar();startRest(key);
 }
 function addSet(id){S.active.entries[id].push({w:null,r:null,done:false});save();render();}
-function cancelSession(){askConfirm('Discard workout?','Nothing from this session will be saved.','Discard',()=>{S.active=null;save();});}
+function cancelSession(){askConfirm('Discard workout?','Nothing from this session will be saved.','Discard',()=>{S.active=null;save();cancelBeeps();syncWakeLock();});}
 function finishSession(){
   const exercises=S.program.map(ex=>({exId:ex.id,name:ex.name,sets:(S.active.entries[ex.id]||[]).filter(s=>s.done&&s.w!=null&&s.r!=null).map(s=>({w:s.w,r:s.r}))}));
   if(!exercises.some(e=>e.sets.length)){toast('No completed sets yet');return;}
@@ -300,9 +415,10 @@ function finishSession(){
     const prevTop=maxWeightEver(e.exId);
     if(prevTop!=null&&top>prevTop)prs.push(e.name);
   }
-  S.sessions.push({id:uid(),date:Date.now(),exercises});
-  S.active=null;save();
-  toast(prs.length?'New best: '+prs.join(', '):'Workout saved');
+  const dur=Date.now()-S.active.startedAt;
+  S.sessions.push({id:uid(),date:Date.now(),dur,exercises});
+  S.active=null;save();cancelBeeps();syncWakeLock();
+  toast(prs.length?'New best: '+prs.join(', '):`Workout saved · ${Math.round(dur/60000)} min`);
   render();
 }
 function maxWeightEver(exId){
@@ -444,10 +560,36 @@ function barChart(pts){
 
 /* ---------- MORE: history, backup ---------- */
 function viewMore(){
-  return `<h1>History</h1>
-  <div style="margin:14px 0">
+  const st=S.settings,auto=Math.round(planFor(programCounts(),true).total/60);
+  return `<h1>More</h1>
+  <h2>Timers</h2>
+  <div class="card" style="padding:2px 14px">
+    <div class="setting">
+      <div class="t"><div>Rest between sets</div><div>Starts when you log a set</div></div>
+      <div class="stepper"><button class="icon out" onclick="setRestDefault(-15)" aria-label="Shorter rest">−</button><b>${mmss(st.rest)}</b><button class="icon out" onclick="setRestDefault(15)" aria-label="Longer rest">+</button></div>
+    </div>
+    <div class="setting">
+      <div class="t"><div>Workout target</div><div>Empty = auto, ${auto} min for your sets and rest</div></div>
+      <input type="number" inputmode="numeric" placeholder="${auto}" value="${st.target??''}" onchange="setTarget(this.value)" aria-label="Workout target in minutes"><span class="sub small">min</span>
+    </div>
+    <div class="setting">
+      <div class="t"><div>Sound</div><div>Beeps 3-2-1 and when rest ends</div></div>
+      <button class="sw" role="switch" aria-checked="${!!st.sound}" aria-label="Sound" onclick="toggleSetting('sound')"></button>
+    </div>
+    <div class="setting">
+      <div class="t"><div>Vibrate</div><div>When rest ends</div></div>
+      <button class="sw" role="switch" aria-checked="${!!st.vibrate}" aria-label="Vibrate" onclick="toggleSetting('vibrate')"></button>
+    </div>
+    <div class="setting">
+      <div class="t"><div>Keep screen on</div><div>During a workout, so the timer can beep</div></div>
+      <button class="sw" role="switch" aria-checked="${!!st.awake}" aria-label="Keep screen on" onclick="toggleSetting('awake')"></button>
+    </div>
+    <div class="setting"><button class="btn block" onclick="testSound()">Test alarm</button></div>
+  </div>
+  <h2>History</h2>
+  <div style="margin:0 0 14px">
   ${S.sessions.length?[...S.sessions].reverse().map(s=>`<div class="hist">
-    <div><div class="d">${fmtDate(s.date)}</div><div class="m">${s.exercises.filter(e=>e.sets.length).map(e=>esc(e.name)+' '+e.sets.map(t=>`${t.w}×${t.r}`).join(' ')).join(' · ')}</div></div>
+    <div><div class="d">${fmtDate(s.date)}${s.dur?` <span class="sub" style="font-weight:500">· ${Math.round(s.dur/60000)} min</span>`:''}</div><div class="m">${s.exercises.filter(e=>e.sets.length).map(e=>esc(e.name)+' '+e.sets.map(t=>`${t.w}×${t.r}`).join(' ')).join(' · ')}</div></div>
     <button class="icon" onclick="delSession('${s.id}')" aria-label="Delete session">✕</button>
   </div>`).join(''):'<div class="sub">No workouts logged yet.</div>'}
   </div>
@@ -460,6 +602,14 @@ function viewMore(){
   </div>
   <button class="btn ghost danger block" style="margin-top:18px" onclick="wipe()">Erase all data</button>`;
 }
+function setRestDefault(d){S.settings.rest=Math.min(600,Math.max(15,S.settings.rest+d));save();render();}
+function setTarget(v){const n=num(v);S.settings.target=n&&n>=5?Math.min(300,Math.round(n)):null;save();render();}
+function toggleSetting(k){
+  S.settings[k]=!S.settings[k];save();
+  if(k==='awake')syncWakeLock();
+  if(k==='sound'){if(S.settings.sound){unlockAudio();scheduleBeeps();}else cancelBeeps();}
+  render();
+}
 function delSession(id){askConfirm('Delete workout?','This session is removed from history and charts.','Delete',()=>{S.sessions=S.sessions.filter(s=>s.id!==id);save();});}
 function exportData(){
   const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});const a=document.createElement('a');
@@ -467,14 +617,186 @@ function exportData(){
 }
 function importData(inp){
   const f=inp.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.program||!d.sessions)throw 0;S=d;S.bodyweight=S.bodyweight||[];save();render();toast('Backup restored');}catch(e){toast('That file is not a Loadbook backup');}};
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.program||!d.sessions)throw 0;S=d;normalize();save();cancelBeeps();syncWakeLock();render();toast('Backup restored');}catch(e){toast('That file is not a Loadbook backup');}};
   r.readAsText(f);inp.value='';
 }
 function wipe(){askConfirm('Erase all data?','All workouts and bodyweight logs are deleted and the program resets to Full-body A. This cannot be undone.','Erase everything',()=>{
-  S={program:DEFAULT_PROGRAM.map(([name,sets,reps,icon])=>({id:uid(),name,sets,reps,icon})),sessions:[],active:null,bodyweight:[]};
-  try{localStorage.removeItem(KEY);}catch(e){} save();tab='workout';toast('All data erased');});}
+  const keep=S.settings;
+  S={program:DEFAULT_PROGRAM.map(([name,sets,reps,icon])=>({id:uid(),name,sets,reps,icon})),sessions:[],active:null,bodyweight:[],settings:keep};
+  try{localStorage.removeItem(KEY);}catch(e){} normalize();save();cancelBeeps();syncWakeLock();tab='workout';toast('All data erased');});}
+
+/* ---------- timers: workout pace + rest countdown ---------- */
+// The pace plan, in seconds: warm-up allowance, time for one set, extra time to switch exercise.
+// Rest between sets comes from settings (default 1:45).
+const PLAN={warm:300,work:45,change:30};
+function planFor(counts,ignoreTarget){
+  const ends=[];let t=PLAN.warm,first=true;
+  for(const n of counts)for(let i=0;i<n;i++){
+    if(!first)t+=S.settings.rest+(i===0?PLAN.change:0);
+    t+=PLAN.work;ends.push(t);first=false;
+  }
+  let total=t;
+  if(S.settings.target&&!ignoreTarget&&ends.length){
+    const k=S.settings.target*60/total;
+    for(let i=0;i<ends.length;i++)ends[i]*=k;
+    total=S.settings.target*60;
+  }
+  return {ends,total}; // ends[i] = when set i should be finished, counted from the start
+}
+const programCounts=()=>S.program.map(ex=>ex.sets);
+const activeCounts=()=>S.program.map(ex=>(S.active.entries[ex.id]||[]).length);
+const doneCount=()=>S.program.reduce((a,ex)=>a+(S.active.entries[ex.id]||[]).filter(s=>s.done).length,0);
+function pace(){
+  const {ends,total}=planFor(activeCounts());
+  const el=Math.max(0,(Date.now()-S.active.startedAt)/1000),n=doneCount(),N=ends.length;
+  let state='on',by=0;
+  if(N&&n>=N)state='done';
+  else if(N&&el>ends[n]){state='behind';by=el-ends[n];}      // the next set should already be finished
+  else if(n>0&&el<ends[n-1]){state='ahead';by=ends[n-1]-el;} // finished more sets than planned by now
+  return {ends,total,el,n,N,state,by};
+}
+function nextSet(){
+  for(const ex of S.program){
+    const sets=S.active.entries[ex.id]||[],i=sets.findIndex(s=>!s.done);
+    if(i>=0){const last=lastSessionFor(ex.id);return {ex,i,n:sets.length,L:last&&last.sets[i]};}
+  }
+  return null;
+}
+let tickSig='',ticker=null;
+function paintBar(){
+  const bar=$('wbar');if(!bar||!S.active)return;
+  const p=pace(),T=Math.max(p.total,1);
+  $('wClock').textContent=mmss(p.el);
+  $('wSets').textContent=`${p.n}/${p.N} sets`;
+  $('wVol').textContent=Math.round(activeVolume()).toLocaleString()+' kg';
+  $('wTarget').textContent=`target ${Math.round(p.total/60)} min`;
+  $('wFill').style.width=Math.min(100,p.el/T*100)+'%';
+  const sig=p.n+'|'+p.N+'|'+Math.round(T);
+  if(sig!==tickSig){
+    tickSig=sig;
+    $('wTicks').innerHTML=p.ends.map((e,i)=>`<i class="${i<p.n?'d':i===p.n?'nx':''}" style="left:${Math.min(100,e/T*100).toFixed(2)}%"></i>`).join('');
+  }
+  $('wPace').textContent=p.state==='behind'?'Behind '+mmss(Math.ceil(p.by)):p.state==='ahead'?'Ahead '+mmss(Math.ceil(p.by)):p.state==='done'?'All sets done':'On pace';
+  bar.className='wbar '+p.state;
+}
+function paintRest(){
+  const el=$('rest'),r=S.active&&S.active.rest;
+  document.body.classList.toggle('resting',!!r);
+  if(!r){el.hidden=true;el.classList.remove('over');return;}
+  el.hidden=false;
+  const rem=(r.endsAt-Date.now())/1000,over=rem<=0;
+  el.classList.toggle('over',over);
+  $('rLabel').textContent=over?'Rest over · go':'Rest';
+  $('rClock').textContent=over?'+'+mmss(-rem):mmss(Math.ceil(rem));
+  $('rFill').style.width=(over?0:Math.min(100,rem/r.dur*100))+'%';
+  $('rSkip').textContent=over?'OK':'Skip';
+  const nx=nextSet();
+  const txt=nx?`Next: ${nx.ex.name} · set ${nx.i+1}/${nx.n}${nx.L&&nx.L.w!=null?` · last ${nx.L.w} × ${nx.L.r}`:''}`:'All sets done · tap Finish';
+  if($('rNext').textContent!==txt)$('rNext').textContent=txt;
+}
+function startRest(key){
+  if(!S.active)return;
+  if(!nextSet()){S.active.rest=null;save();cancelBeeps();paintRest();toast('Last set done · tap Finish');return;}
+  S.active.rest={endsAt:Date.now()+S.settings.rest*1000,dur:S.settings.rest,key:key||'',alerted:false};
+  save();scheduleBeeps();paintRest();
+}
+function adjustRest(d){
+  const r=S.active&&S.active.rest;if(!r||r.alerted)return;
+  if((r.endsAt-Date.now())/1000+d<=0){skipRest();return;}
+  r.endsAt+=d*1000;r.dur=Math.max(1,r.dur+d);
+  save();scheduleBeeps();paintRest();
+}
+function skipRest(){if(!S.active)return;S.active.rest=null;save();cancelBeeps();paintRest();}
+function ensureTicker(){
+  if(S.active&&!ticker)ticker=setInterval(tick,250);
+  else if(!S.active&&ticker){clearInterval(ticker);ticker=null;}
+}
+function tick(){
+  if(!S.active){ensureTicker();return;}
+  const r=S.active.rest;
+  if(r&&!r.alerted&&Date.now()>=r.endsAt){
+    r.alerted=true;save();
+    if(Date.now()-r.endsAt<8000)alarm(); else cancelBeeps(); // don't beep late after coming back to the app
+  }
+  paintRest();paintBar();
+}
+function alarm(){
+  const r=S.active&&S.active.rest;
+  if(S.settings.vibrate&&navigator.vibrate)try{navigator.vibrate([250,120,250,120,600]);}catch(e){}
+  const scheduled=r&&beepsFor===r.endsAt&&AC&&AC.state==='running';
+  if(S.settings.sound&&!scheduled&&AC&&AC.state==='running')beepPattern(AC.currentTime+0.02);
+}
+
+/* sound: short Web Audio beeps, scheduled ahead so they land exactly on time.
+   They play over your music instead of stopping it. */
+let AC=null,beepNodes=[],beepsFor=0,audioUnlocked=false;
+function audioCtx(){
+  if(AC)return AC;
+  const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
+  try{AC=new C();}catch(e){return null;}
+  AC.onstatechange=()=>{if(AC.state==='running')scheduleBeeps();};
+  return AC;
+}
+function unlockAudio(){
+  if(S.active&&S.settings.awake&&!wakeLock)syncWakeLock();
+  if(!S.settings.sound)return;
+  const a=audioCtx();if(!a)return;
+  if(a.state!=='running')a.resume().catch(()=>{});
+  if(!audioUnlocked){try{const b=a.createBufferSource();b.buffer=a.createBuffer(1,1,22050);b.connect(a.destination);b.start(0);audioUnlocked=true;}catch(e){}}
+}
+['pointerup','touchend','keydown','click'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
+function tone(f,at,d,v){
+  const a=AC,o=a.createOscillator(),g=a.createGain();
+  o.type='square';o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,at);
+  g.gain.exponentialRampToValueAtTime(v,at+0.01);
+  g.gain.setValueAtTime(v,Math.max(at+0.011,at+d-0.04));
+  g.gain.exponentialRampToValueAtTime(0.0001,at+d);
+  o.connect(g);g.connect(a.destination);
+  o.start(at);o.stop(at+d+0.02);
+  return o;
+}
+function beepPattern(t0){return [tone(1760,t0,0.16,0.25),tone(1760,t0+0.24,0.16,0.25),tone(2349,t0+0.48,0.6,0.3)];}
+function cancelBeeps(){
+  beepNodes.forEach(o=>{try{o.stop();}catch(e){}try{o.disconnect();}catch(e){}});
+  beepNodes=[];beepsFor=0;
+}
+function scheduleBeeps(){
+  cancelBeeps();
+  const r=S.active&&S.active.rest;
+  if(!r||r.alerted||!S.settings.sound||!AC||AC.state!=='running')return;
+  const rem=(r.endsAt-Date.now())/1000;if(rem<=0.05)return;
+  const t0=AC.currentTime+rem;
+  for(const k of [3,2,1])if(rem>k+0.1)beepNodes.push(tone(1175,t0-k,0.09,0.16));
+  beepNodes.push(...beepPattern(t0));
+  beepsFor=r.endsAt;
+}
+function testSound(){
+  if(S.settings.vibrate&&navigator.vibrate)try{navigator.vibrate([250,120,250,120,600]);}catch(e){}
+  const a=audioCtx();if(!a){toast('Sound is not supported in this browser');return;}
+  const go=()=>beepPattern(a.currentTime+0.05);
+  if(a.state==='running')go();else a.resume().then(go).catch(()=>toast('Tap again to allow sound'));
+}
+
+/* keep the screen on during a workout, so the timer keeps running and can beep */
+let wakeLock=null,wlBusy=false;
+async function syncWakeLock(){
+  if(wlBusy)return;wlBusy=true;
+  try{
+    const want=!!(S.active&&S.settings.awake&&document.visibilityState==='visible'&&'wakeLock' in navigator);
+    if(want&&!wakeLock){
+      const w=await navigator.wakeLock.request('screen');wakeLock=w;
+      w.addEventListener('release',()=>{if(wakeLock===w)wakeLock=null;});
+    }else if(!want&&wakeLock){const w=wakeLock;wakeLock=null;await w.release();}
+  }catch(e){}
+  wlBusy=false;
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){syncWakeLock();scheduleBeeps();tick();}
+});
 
 render();
+if(S.active)syncWakeLock();
 </script>
 </body>
 </html>

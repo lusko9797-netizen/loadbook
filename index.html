@@ -319,6 +319,29 @@ button.cd:active{transform:scale(.94)}
 .bigpic{display:grid;place-items:center}
 .bigpic .pic{width:176px;height:176px;border-radius:20px}
 .bigpic .pic svg{width:160px;height:160px}
+
+/* change exercise + sound settings */
+.hname{flex:1;min-width:0}
+.hname .goal{margin-top:1px}
+.chgbtn{flex:none;align-self:center;padding:7px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--mute);font-size:14px;font-weight:600}
+.chgbtn:active{transform:scale(.95)}
+.swap button small{color:var(--gold);font-size:12px;font-weight:700}
+.usebtn{flex:none;height:38px;padding:0 15px;border-radius:12px;background:var(--gold);color:var(--gold-ink);font-size:15px;font-weight:700}
+.usebtn:active{transform:scale(.95)}
+div.libmain{cursor:default}
+.lifts+.libg,.libg+.lifts{margin-top:8px}
+.volrow{display:flex;align-items:center;gap:10px;margin-top:8px}
+.volrow svg{width:22px;height:22px;flex:none;color:var(--mute)}
+.volrow input[type=range]{flex:1;min-width:0;height:30px;padding:0;border:0;background:none;accent-color:var(--gold)}
+#volv{color:var(--gold);font-weight:600;margin-left:4px}
+.mels{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.mel{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
+.mel.on{border-color:var(--gold)}
+.mel i{width:18px;height:18px;flex:none;border-radius:50%;border:2px solid var(--dim);box-sizing:border-box}
+.mel.on i{border:5px solid var(--gold)}
+.mel b{display:block;font-weight:600}
+.mel small{display:block;color:var(--mute);font-size:13px}
+.mel:active{transform:scale(.99)}
 </style>
 </head>
 <body>
@@ -352,7 +375,7 @@ let S=load();
 const MET_KEYS=['normal','hard'];
 function normalize(){
   S.bodyweight=S.bodyweight||[];
-  S.settings=Object.assign({rest:105,target:null,sound:true,vibrate:true,awake:true,effort:'normal',sex:null,height:null,birthYear:null,cardioMachine:'treadmill',cardioMode:'calc'},S.settings||{});
+  S.settings=Object.assign({rest:105,target:null,sound:true,vibrate:true,awake:true,effort:'normal',sex:null,height:null,birthYear:null,cardioMachine:'treadmill',cardioMode:'calc',volume:0.5,melody:'beeps',countdown:true},S.settings||{});
   if(!MET_KEYS.includes(S.settings.effort))S.settings.effort='normal';
 }
 normalize();
@@ -476,7 +499,9 @@ const LIBK=Object.fromEntries(LIB.map(x=>[x.k,x]));
 const fromLib=(k,sets,reps)=>{const x=LIBK[k],o={id:uid(),name:x.n,sets:sets??x.s,reps:reps??x.r,icon:k,lib:k};if(x.u)o.unit=x.u;return o;};
 const optsOf=slot=>[slot,...(slot.alts||[])];          // a program exercise and its swaps
 const allEx=()=>S.program.flatMap(optsOf);
-const exById=id=>allEx().find(e=>e.id===id)||null;
+const exById=id=>allEx().find(e=>e.id===id)||activeExtras().find(e=>e.id===id)||null;
+const activeExtras=()=>S.active&&S.active.extra?Object.values(S.active.extra).flat():[];   // exercises changed in for this workout
+const slotOpts=slot=>[...optsOf(slot),...((S.active&&S.active.extra&&S.active.extra[slot.id])||[])];
 const repWord=ex=>ex&&ex.unit==='s'?'sec':'reps';
 const isBodyweight=ex=>!!(ex&&ex.lib&&LIBK[ex.lib]&&LIBK[ex.lib].eq==='Body weight');
 
@@ -518,9 +543,16 @@ const mmss=x=>{x=Math.max(0,Math.floor(x+1e-6));const h=Math.floor(x/3600),m=Mat
 let tab='workout', progressEx=null, modal=null;
 function toast(t){document.querySelectorAll('.toast').forEach(x=>x.remove());const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),1600);}
 
+function sameEx(ex){ // does a logged exercise record belong to this exercise?
+  if(!ex)return ()=>false;
+  const ids=new Set([ex.id]);if(ex.src)ids.add(ex.src);
+  if(ex.lib)for(const o of allEx())if(o.lib===ex.lib)ids.add(o.id);
+  return e=>ids.has(e.exId)||(!!ex.lib&&e.lib===ex.lib);
+}
 function lastSessionFor(exId){
+  const m=sameEx(exById(exId)||{id:exId});
   for(let i=S.sessions.length-1;i>=0;i--){
-    const e=S.sessions[i].exercises.find(x=>x.exId===exId);
+    const e=S.sessions[i].exercises.find(x=>m(x)&&x.sets.length);
     if(e && e.sets.some(s=>s.w!=null&&s.r!=null)) return {date:S.sessions[i].date,sets:e.sets};
   }
   return null;
@@ -560,6 +592,7 @@ function go(t){tab=t;modal=null;libState=null;render();window.scrollTo(0,0);}
 
 /* ---------- WORKOUT ---------- */
 function viewWorkout(){
+  if(S.active&&libState&&libState.mode==='change')return viewLibrary();
   if(S.active) return viewActive();
   const nw=nextWorkoutInfo();
   const last=S.sessions[S.sessions.length-1];
@@ -589,7 +622,7 @@ function viewWorkout(){
     <button class="btn" onclick="openBw()">Log weight</button>
   </div>`;
 }
-function curEx(slot){const c=S.active&&S.active.choice&&S.active.choice[slot.id];return optsOf(slot).find(o=>o.id===c)||slot;}
+function curEx(slot){const c=S.active&&S.active.choice&&S.active.choice[slot.id];return slotOpts(slot).find(o=>o.id===c)||slot;}
 function defaultChoice(slot){ // swaps take turns: the option after the one used in the last workout
   const o=optsOf(slot);if(o.length<2)return slot.id;
   const ids=o.map(x=>x.id);
@@ -606,7 +639,7 @@ function ensureEntries(ex){
   return S.active.entries[ex.id];
 }
 function startSession(){
-  S.active={startedAt:Date.now(),entries:{},choice:{},rest:null,cardio:newCardio()};
+  S.active={startedAt:Date.now(),entries:{},choice:{},extra:{},rest:null,cardio:newCardio()};
   for(const slot of S.program){const ex=exById(defaultChoice(slot))||slot;S.active.choice[slot.id]=ex.id;ensureEntries(ex);}
   save();window.scrollTo(0,0);render();syncWakeLock();unlockAudio();
 }
@@ -626,11 +659,11 @@ function viewActive(){
     <div class="wmeta"><span id="wSets"></span> · <span id="wVol"></span><span id="wKcal"></span> · <span id="wTarget"></span></div>
   </div>
   ${S.program.map(slot=>{
-    const ex=curEx(slot),opts=optsOf(slot),last=lastSessionFor(ex.id),sets=ensureEntries(ex);
+    const ex=curEx(slot),opts=slotOpts(slot),last=lastSessionFor(ex.id),sets=ensureEntries(ex);
     const nd=o=>(S.active.entries[o.id]||[]).filter(x=>x.done).length;
-    const swap=opts.length>1?`<div class="swap" role="group" aria-label="Choose the exercise">${opts.map(o=>`<button class="${o.id===ex.id?'on':''}" aria-pressed="${o.id===ex.id}" onclick="chooseEx('${slot.id}','${o.id}')">${o.id===ex.id?'':'⇄ '}${esc(o.name)}${o.id!==ex.id&&nd(o)?` · ${nd(o)} ✓`:''}</button>`).join('')}</div>`:'';
+    const swap=opts.length>1?`<div class="swap" role="group" aria-label="Choose the exercise">${opts.map(o=>`<button class="${o.id===ex.id?'on':''}" aria-pressed="${o.id===ex.id}" onclick="chooseEx('${slot.id}','${o.id}')">${o.id===ex.id?'':'⇄ '}${esc(o.name)}${o.oneOff?' <small>today</small>':''}${o.id!==ex.id&&nd(o)?` · ${nd(o)} ✓`:''}</button>`).join('')}</div>`:'';
     return `<div class="ex">
-      <header>${iconOf(ex)}<div class="name">${esc(ex.name)}</div><div class="goal">${ex.sets} × ${ex.reps}${ex.unit==='s'?' s':''}${last?' · last '+shortDate(last.date):''}</div></header>
+      <header>${iconOf(ex)}<div class="hname"><div class="name">${esc(ex.name)}</div><div class="goal">${ex.sets} × ${ex.reps}${ex.unit==='s'?' s':''}${last?' · last '+shortDate(last.date):''}</div></div><button class="chgbtn" onclick="openChange('${slot.id}')" aria-label="Change ${esc(ex.name)}">Change</button></header>
       ${swap}
       <div class="sethead"><div style="text-align:center">Set</div><div>Last time</div><div style="text-align:center">kg</div><div style="text-align:center">${ex.unit==='s'?'Sec':'Reps'}</div><div></div></div>
       ${sets.map((s,i)=>{
@@ -711,8 +744,11 @@ function toggleDone(id,i){
 function addSet(id){S.active.entries[id].push({w:null,r:null,done:false});save();render();}
 function cancelSession(){askConfirm('Discard workout?','Nothing from this session will be saved.','Discard',()=>{S.active=null;save();cancelBeeps();syncWakeLock();});}
 function finishSession(){
-  const exercises=S.program.flatMap(slot=>{const cur=curEx(slot);return optsOf(slot).filter(o=>o.id===cur.id||(S.active.entries[o.id]||[]).some(x=>x.done)).map(o=>{
-    const e={exId:o.id,name:o.name,sets:(S.active.entries[o.id]||[]).filter(x=>x.done&&x.w!=null&&x.r!=null).map(x=>({w:x.w,r:x.r}))};if(o.unit)e.unit=o.unit;return e;});});
+  const recs=S.program.flatMap(slot=>{const cur=curEx(slot);return slotOpts(slot).filter(o=>o.id===cur.id||(S.active.entries[o.id]||[]).some(x=>x.done)).map(o=>{
+    const e={exId:o.src||o.id,name:o.name,sets:(S.active.entries[o.id]||[]).filter(x=>x.done&&x.w!=null&&x.r!=null).map(x=>({w:x.w,r:x.r}))};
+    if(o.lib)e.lib=o.lib;if(o.unit)e.unit=o.unit;return [o,e];});});
+  for(let i=recs.length-1;i>0;i--){const j=recs.findIndex(r=>r[1].exId===recs[i][1].exId);if(j<i){recs[j][1].sets.push(...recs[i][1].sets);recs.splice(i,1);}} // same exercise twice: one record
+  const exercises=recs.map(r=>r[1]);
   const c=upgradeCardio(S.active.cardio);let cardio=null;
   if(c.min>0||(c.mode==='machine'&&c.kcal>0)){
     cardio={machine:c.machine,mode:c.mode,min:c.min||0};
@@ -722,10 +758,10 @@ function finishSession(){
   }
   if(!exercises.some(e=>e.sets.length)&&!cardio){toast('Log a set or some cardio first');return;}
   const prs=[];
-  for(const e of exercises){
+  for(const [o,e] of recs){
     if(!e.sets.length)continue;
     const top=Math.max(...e.sets.map(s=>s.w));
-    const prevTop=maxWeightEver(e.exId);
+    const prevTop=maxWeightFor(o);
     if(prevTop!=null&&top>prevTop)prs.push(e.name);
   }
   const dur=Date.now()-S.active.startedAt;
@@ -741,8 +777,8 @@ function finishSession(){
   toast((prs.length?'New best: '+prs.join(', '):'Workout saved')+` · ${Math.round(dur/60000)} min${k?' · '+k:''}`);
   render();
 }
-function maxWeightEver(exId){
-  let m=null;for(const s of S.sessions)for(const e of s.exercises)if(e.exId===exId)for(const st of e.sets)if(m==null||st.w>m)m=st.w;return m;
+function maxWeightFor(ex){
+  const same=sameEx(ex);let m=null;for(const s of S.sessions)for(const e of s.exercises)if(same(e))for(const st of e.sets)if(m==null||st.w>m)m=st.w;return m;
 }
 
 /* bodyweight */
@@ -770,7 +806,7 @@ function runConfirm(){const f=_confirmFn;_confirmFn=null;modal=null;f&&f();rende
 /* ---------- PROGRAM ---------- */
 let libState=null; // exercise library view: {mode:'add'|'alt', slot, g, q}
 function viewProgram(){
-  if(libState)return viewLibrary();
+  if(libState&&libState.mode!=='change')return viewLibrary();
   const anySwap=S.program.some(p=>(p.alts||[]).length);
   return `<h1>Full-body A</h1><div class="sub">Every other day. Tap an exercise to edit it or give it a swap.</div>
   <div style="margin:16px 0 10px">
@@ -854,38 +890,50 @@ function openLibrary(mode,slot){
   libState={mode:mode||'add',slot:slot||null,g:'All',q:''};modal=null;tab='program';render();window.scrollTo(0,0);
 }
 function closeLibrary(){
-  const st=libState;libState=null;modal=null;render();window.scrollTo(0,0);
+  const st=libState;libState=null;modal=null;render();window.scrollTo(0,st&&st.mode==='change'?st.y||0:0);
   if(st&&st.mode==='alt'&&st.slot)openEx(st.slot);
 }
-const libSlot=()=>libState&&libState.mode==='alt'?S.program.find(p=>p.id===libState.slot)||null:null;
+const libSlot=()=>libState&&(libState.mode==='alt'||libState.mode==='change')?S.program.find(p=>p.id===libState.slot)||null:null;
 function libHas(k){
   const slot=libSlot();
   return slot?optsOf(slot).some(o=>o.lib===k):S.program.some(p=>p.lib===k);
 }
 function viewLibrary(){
-  const st=libState,slot=libSlot();
-  if(st.mode==='alt'&&!slot){libState=null;return viewProgram();}
+  const st=libState,slot=libSlot(),chg=st.mode==='change';
+  if((st.mode==='alt'||chg)&&!slot){libState=null;return chg?viewWorkout():viewProgram();}
   return `<div class="libhead"><button class="icon out" onclick="closeLibrary()" aria-label="Back">‹</button>
-    <div class="grow"><h1>${slot?'Add a swap':'Exercises'}</h1><div class="sub small">${slot?`Takes turns with ${esc(slot.name)}`:`${LIB.length} exercises · tap one to see it bigger`}</div></div></div>
+    <div class="grow"><h1>${chg?'Change exercise':slot?'Add a swap':'Exercises'}</h1><div class="sub small">${chg?`Instead of ${esc(curEx(slot).name)} · just this workout`:slot?`Takes turns with ${esc(slot.name)}`:`${LIB.length} exercises · tap one to see it bigger`}</div></div></div>
   <input id="libq" type="search" placeholder="Search exercises" value="${esc(st.q)}" oninput="libSearch(this.value)" autocomplete="off" aria-label="Search exercises">
   <div class="tabs" role="group" aria-label="Muscle group">${['All',...GROUPS].map(g=>`<button class="${g===st.g?'on':''}" aria-pressed="${g===st.g}" onclick="libGroup('${g}')">${g}</button>`).join('')}</div>
   <div id="libList">${libList()}</div>
-  ${slot?'':'<button class="btn block" style="margin-top:14px" onclick="openEx()">Create your own exercise</button>'}`;
+  ${slot||chg?'':'<button class="btn block" style="margin-top:14px" onclick="openEx()">Create your own exercise</button>'}`;
 }
 function libList(){
-  const st=libState,q=st.q.trim().toLowerCase(),alt=!!libSlot();
+  const st=libState,q=st.q.trim().toLowerCase(),mode=st.mode,slot=libSlot();
+  const cur=mode==='change'&&slot?curEx(slot):null;
   const items=LIB.filter(x=>(st.g==='All'||x.g===st.g)&&(!q||(x.n+' '+x.w+' '+x.eq+' '+x.g).toLowerCase().includes(q)));
-  if(!items.length)return `<div class="empty">Nothing matches “${esc(st.q)}”.${alt?'':' You can create your own exercise below.'}</div>`;
+  const act=x=>mode==='change'
+    ?(cur&&cur.lib===x.k?'<span class="added">✓ Now</span>':`<button class="usebtn" onclick="changeUse('${x.k}')" aria-label="Use ${esc(x.n)}">Use</button>`)
+    :(libHas(x.k)?`<span class="added">✓ ${mode==='alt'?'Swap':'Added'}</span>`:`<button class="addb" onclick="quickAdd('${x.k}')" aria-label="Add ${esc(x.n)}">+</button>`);
   const row=x=>`<div class="lib">
     <button class="libmain" onclick="openLibEx('${x.k}')"><span class="pic">${ICONS[x.k]}</span><span class="lmain"><span class="lname">${esc(x.n)}</span><span class="lsub">${esc(x.eq)} · ${esc(x.w)}</span></span></button>
-    ${libHas(x.k)?`<span class="added">✓ ${alt?'Swap':'Added'}</span>`:`<button class="addb" onclick="quickAdd('${x.k}')" aria-label="Add ${esc(x.n)}">+</button>`}</div>`;
-  if(st.g!=='All'||q)return `<div class="libs">${items.map(row).join('')}</div>`;
-  return GROUPS.map(g=>{const xs=items.filter(x=>x.g===g);return `<h3 class="libg">${g} <span>${xs.length}</span></h3><div class="libs">${xs.map(row).join('')}</div>`;}).join('');
+    ${act(x)}</div>`;
+  let own='';
+  if(mode==='change'&&st.g==='All'){ // your own exercises from the program
+    const mine=allEx().filter(o=>!o.lib&&(!q||o.name.toLowerCase().includes(q)));
+    if(mine.length)own=`<h3 class="libg">Your exercises <span>${mine.length}</span></h3><div class="libs">${mine.map(o=>`<div class="lib"><div class="libmain">${iconOf(o)}<span class="lmain"><span class="lname">${esc(o.name)}</span><span class="lsub">Your own exercise</span></span></div>
+      ${cur&&(cur.id===o.id||cur.src===o.id)?'<span class="added">✓ Now</span>':`<button class="usebtn" onclick="changeUse('${o.id}')" aria-label="Use ${esc(o.name)}">Use</button>`}</div>`).join('')}</div>`;
+  }
+  if(!items.length&&!own)return `<div class="empty">Nothing matches “${esc(st.q)}”.${mode==='add'?' You can create your own exercise below.':''}</div>`;
+  if(st.g!=='All'||q)return own+(items.length?`${own?'<h3 class="libg">Exercises</h3>':''}<div class="libs">${items.map(row).join('')}</div>`:'');
+  return own+GROUPS.map(g=>{const xs=items.filter(x=>x.g===g);return `<h3 class="libg">${g} <span>${xs.length}</span></h3><div class="libs">${xs.map(row).join('')}</div>`;}).join('');
 }
 function libSearch(v){if(!libState)return;libState.q=v;$('libList').innerHTML=libList();}
 function libGroup(g){libState.g=g;render();}
 function openLibEx(k){
-  const x=LIBK[k],slot=libSlot(),has=libHas(k);if(!x)return;
+  const x=LIBK[k],slot=libSlot(),chg=libState&&libState.mode==='change';if(!x)return;
+  if(chg)return openChangeEx(k,x,slot);
+  const has=libHas(k);
   const sets=slot?slot.sets:x.s,reps=slot?slot.reps:x.r;
   modal=`<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">
     <div class="bigpic"><span class="pic">${ICONS[k]}</span></div>
@@ -914,6 +962,47 @@ function addFromLib(k,quick){
   }
   S.program.push(fromLib(k,sets,reps));save();modal=null;render();
   toast(`Added ${x.n} · ${sets}×${reps}${x.u==='s'?' s':''}`);
+}
+
+/* ---------- change an exercise during a workout ---------- */
+function openChange(slotId){
+  if(!S.active||!S.program.find(p=>p.id===slotId))return;
+  libState={mode:'change',slot:slotId,g:'All',q:'',y:window.scrollY};modal=null;render();window.scrollTo(0,0);
+}
+function openChangeEx(k,x,slot){
+  const cur=curEx(slot),isNow=cur.lib===k,isOpt=slotOpts(slot).some(o=>o.lib===k&&!o.oneOff);
+  modal=`<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">
+    <div class="bigpic"><span class="pic">${ICONS[k]}</span></div>
+    <h2 style="margin:14px 0 2px">${esc(x.n)}</h2>
+    <div class="sub">${x.g} · ${esc(x.eq)}</div>
+    <div class="small" style="margin-top:6px">Works: ${esc(x.w)}</div>
+    <div class="row" style="margin-top:14px">
+      <div class="grow"><label class="f" for="ls">Sets</label><input id="ls" type="number" inputmode="numeric" value="${slot.sets}"></div>
+      <div class="grow"><label class="f" for="lr">${x.u==='s'?'Seconds':'Reps'}</label><input id="lr" type="number" inputmode="numeric" value="${x.u==='s'?x.r:slot.reps}"></div>
+    </div>
+    ${isNow?`<div class="sub small" style="margin-top:10px">You're doing this one now.</div>`:''}
+    <div class="row" style="margin-top:14px"><button class="btn grow" onclick="closeModal()">Close</button>
+      <button class="btn gold grow" onclick="changeUse('${k}')" ${isNow?'disabled':''}>Use today</button></div>
+    ${isOpt?'':`<button class="btn ghost block" style="margin-top:8px" onclick="changeUse('${k}',true)">Add as a swap for ${esc(slot.name)}</button>`}
+  </div></div>`;
+  render();
+}
+function changeUse(key,asSwap){
+  const st=libState,slot=st&&S.program.find(p=>p.id===st.slot);if(!S.active||!slot)return;
+  const L=LIBK[key],base=L?null:exById(key);if(!L&&!base)return;
+  let sets=slot.sets,reps=L&&L.u==='s'?L.r:slot.reps;
+  if($('ls')){sets=Math.max(1,Math.round(num($('ls').value)||sets));reps=Math.max(1,Math.round(num($('lr').value)||reps));}
+  let opt=slotOpts(slot).find(o=>L?o.lib===key:(o.id===key||o.src===key)),msg=opt?`Switched to ${opt.name}`:'';
+  if(asSwap&&L&&(!opt||opt.oneOff)){opt=fromLib(key,sets,reps);(slot.alts=slot.alts||[]).push(opt);msg=`${opt.name} added as a swap`;}
+  if(!opt){ // just for this workout
+    opt=L?{id:`x_${slot.id}_${key}`,name:L.n,sets,reps,icon:key,lib:key,oneOff:true}
+         :{id:`x_${slot.id}_${key}`,src:key,name:base.name,sets,reps,icon:base.icon||'generic',oneOff:true};
+    const u=L?L.u:base.unit;if(u)opt.unit=u;
+    const ex=(S.active.extra=S.active.extra||{});(ex[slot.id]=ex[slot.id]||[]).push(opt);
+    msg=`${opt.name} for today`;
+  }
+  (S.active.choice=S.active.choice||{})[slot.id]=opt.id;ensureEntries(opt);save();
+  const y=st.y||0;libState=null;modal=null;render();window.scrollTo(0,y);toast(msg);
 }
 
 /* ---------- calories burned ---------- */
@@ -946,7 +1035,7 @@ function rmrDay(kg,t){
 const restPerMin=(kg,t)=>{const r=rmrDay(kg,t);return r!=null?r/1440:3.5*kg/200;};
 function liftPerMin(exs,effort,kg,t){
   let n=0,m=0;
-  for(const e of exs){const k=e.sets.length;if(!k)continue;const p=exById(e.exId);m+=k*exMet(e.name,p&&p.icon,effort);n+=k;}
+  for(const e of exs){const k=e.sets.length;if(!k)continue;const p=exById(e.exId);m+=k*exMet(e.name,(p&&p.icon)||e.lib,effort);n+=k;}
   const met=n?m/n:(effort==='hard'?6:3.5);
   return (met-1)*3.5*kg/200+restPerMin(kg,t);
 }
@@ -972,7 +1061,7 @@ function sessionKcal(s){
 }
 function activeKcal(){
   const t=Date.now(),kg=bwAt(t),c=S.active.cardio||{},cm=c.min||0;
-  const done=allEx().filter(o=>S.active.entries[o.id]).map(o=>({exId:o.id,name:o.name,sets:S.active.entries[o.id].filter(s=>s.done)}));
+  const done=[...allEx(),...activeExtras()].filter(o=>S.active.entries[o.id]).map(o=>({exId:o.id,name:o.name,lib:o.lib,sets:S.active.entries[o.id].filter(s=>s.done)}));
   const mix=done.some(e=>e.sets.length)?done:S.program.map(curEx).map(o=>({exId:o.id,name:o.name,sets:S.active.entries[o.id]||Array(o.sets).fill(0)}));
   const lift=kg?Math.max(0,(t-S.active.startedAt)/6e4-cm)*liftPerMin(mix,S.settings.effort,kg,t):0;
   const cc=cardioCalc(c,t);
@@ -1129,9 +1218,9 @@ function dayDetail(ss){
 }
 const betterSet=(a,b,bw)=>bw?a.r>b.r:(a.w>b.w||(a.w===b.w&&a.r>b.r));
 function liftStats(ex){
-  const pts=[];
+  const pts=[],same=sameEx(ex);
   for(const s of S.sessions){
-    const e=s.exercises.find(x=>x.exId===ex.id);if(!e||!e.sets.length)continue;
+    const e=s.exercises.find(x=>same(x)&&x.sets.length);if(!e)continue;
     const noW=e.sets.every(t=>!t.w),top=e.sets.reduce((a,b)=>betterSet(b,a,noW)?b:a);
     pts.push({date:s.date,w:top.w||0,r:top.r,sets:e.sets});
   }
@@ -1145,8 +1234,19 @@ function liftStats(ex){
   return {pts,bw,rw,val,first,last,best,delta:round(delta),unit,stronger:betterSet(last,first,bw),newBest};
 }
 const setTxt=(p,bw,rw)=>bw?`${p.r} ${rw==='s'?'s':'reps'}`:`${fmtKg(p.w)} kg × ${p.r}`;
+function otherLifts(){ // exercises in your history that aren't in the program (changed in for a day, or removed)
+  const ms=allEx().map(sameEx),seen=new Map();
+  for(const s of S.sessions)for(const e of s.exercises){
+    if(!e.sets.length||ms.some(m=>m(e)))continue;
+    const L=e.lib?LIBK[e.lib]:LIB.find(x=>x.n===e.name),key=(L&&L.k)||e.exId;
+    if(seen.has(key))continue;
+    const o={id:L?'h_'+L.k:e.exId,name:e.name,icon:L?L.k:'generic'};if(L)o.lib=L.k;if(e.unit)o.unit=e.unit;
+    seen.set(key,o);
+  }
+  return [...seen.values()];
+}
 function secStrength(){
-  const rows=allEx().map(ex=>({ex,st:liftStats(ex)})).filter(r=>r.st);
+  const prog=allEx().map(ex=>({ex,st:liftStats(ex)})).filter(r=>r.st),other=otherLifts().map(ex=>({ex,st:liftStats(ex)})).filter(r=>r.st),rows=[...prog,...other];
   const head=`<div class="h2row"><h2>Getting stronger</h2>${rows.length?'<span>tap a lift for details</span>':''}</div>`;
   if(!rows.length)return head+`<div class="empty">Finish a workout to see your lifts here.</div>`;
   const cmp=rows.filter(r=>r.st.pts.length>1),up=cmp.filter(r=>r.st.stronger).length;
@@ -1155,7 +1255,8 @@ function secStrength(){
     <div class="meter" role="img" aria-label="${up} of ${cmp.length} lifts stronger"><i style="width:${Math.round(up/cmp.length*100)}%"></i></div>
     <div class="sub small">Compares your best set in your first workout with your latest.</div></div>`
     :`<div class="card sub small">Do one more workout to compare each lift with your first one.</div>`;
-  return head+summary+`<div class="lifts">${rows.map(r=>liftRow(r.ex,r.st)).join('')}</div>`;
+  return head+summary+`<div class="lifts">${prog.map(r=>liftRow(r.ex,r.st)).join('')}</div>`
+    +(other.length?`<h3 class="libg">Other exercises you've done</h3><div class="lifts">${other.map(r=>liftRow(r.ex,r.st)).join('')}</div>`:'');
 }
 function liftRow(ex,st){
   const open=progressEx===ex.id;
@@ -1310,8 +1411,20 @@ function viewMore(){
       <input type="number" inputmode="numeric" placeholder="${auto}" value="${st.target??''}" onchange="setTarget(this.value)" aria-label="Workout target in minutes"><span class="sub small">min</span>
     </div>
     <div class="setting">
-      <div class="t"><div>Sound</div><div>Beeps 3-2-1 and when rest ends</div></div>
+      <div class="t"><div>Sound</div><div>When rest ends</div></div>
       <button class="sw" role="switch" aria-checked="${!!st.sound}" aria-label="Sound" onclick="toggleSetting('sound')"></button>
+    </div>
+    <div class="setting col">
+      <div class="t"><div>Volume <b id="volv">${Math.round((st.volume??0.5)*100)}%</b></div><div>Your phone's media volume is the maximum</div></div>
+      <div class="volrow">${SPK}</svg><input type="range" min="0" max="100" step="5" value="${Math.round((st.volume??0.5)*100)}" aria-label="Alarm volume" oninput="setVolume(this.value)" onchange="previewMelody()">${SPK}<path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></div>
+    </div>
+    <div class="setting col">
+      <div class="t"><div>Alarm sound</div><div>Tap one to hear it</div></div>
+      <div class="mels" role="radiogroup" aria-label="Alarm sound">${Object.entries(MELODIES).map(([k,m])=>`<button class="mel${k===melodyKey()?' on':''}" role="radio" aria-checked="${k===melodyKey()}" onclick="setMelody('${k}')"><i></i><span><b>${m.name}</b><small>${m.desc}</small></span></button>`).join('')}</div>
+    </div>
+    <div class="setting">
+      <div class="t"><div>Countdown beeps</div><div>3, 2, 1 before rest ends</div></div>
+      <button class="sw" role="switch" aria-checked="${st.countdown!==false}" aria-label="Countdown beeps" onclick="toggleSetting('countdown')"></button>
     </div>
     <div class="setting">
       <div class="t"><div>Vibrate</div><div>When rest ends</div></div>
@@ -1364,12 +1477,15 @@ function viewMore(){
   </div>
   <button class="btn ghost danger block" style="margin-top:18px" onclick="wipe()">Erase all data</button>`;
 }
+const SPK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/>';
+const melodyKey=()=>MELODIES[S.settings.melody]?S.settings.melody:'beeps';
 function setRestDefault(d){S.settings.rest=Math.min(600,Math.max(15,S.settings.rest+d));save();render();}
 function setTarget(v){const n=num(v);S.settings.target=n&&n>=5?Math.min(300,Math.round(n)):null;save();render();}
 function toggleSetting(k){
   S.settings[k]=!S.settings[k];save();
   if(k==='awake')syncWakeLock();
   if(k==='sound'){if(S.settings.sound){unlockAudio();scheduleBeeps();}else cancelBeeps();}
+  if(k==='countdown')scheduleBeeps();
   render();
 }
 function delSession(id){askConfirm('Delete workout?','This session is removed from history and charts.','Delete',()=>{S.sessions=S.sessions.filter(s=>s.id!==id);save();});}
@@ -1487,16 +1603,25 @@ function alarm(){
   const r=S.active&&S.active.rest;
   if(S.settings.vibrate&&navigator.vibrate)try{navigator.vibrate([250,120,250,120,600]);}catch(e){}
   const scheduled=r&&beepsFor===r.endsAt&&AC&&AC.state==='running';
-  if(S.settings.sound&&!scheduled&&AC&&AC.state==='running')beepPattern(AC.currentTime+0.02);
+  if(S.settings.sound&&!scheduled&&AC&&AC.state==='running')melody().end(AC.currentTime+0.02);
 }
 
-/* sound: short Web Audio beeps, scheduled ahead so they land exactly on time.
-   They play over your music instead of stopping it. */
-let AC=null,beepNodes=[],beepsFor=0,audioUnlocked=false;
+/* sound: Web Audio, scheduled ahead so it lands exactly on time, played over your music.
+   Every sound is made right here (no audio files), then goes through your volume and a soft
+   limiter so loud settings don't crackle. */
+let AC=null,master=null,beepNodes=[],beepsFor=0,audioUnlocked=false,previewNodes=[];
+const volGain=()=>0.9*Math.pow(Math.max(0,Math.min(1,S.settings.volume??0.5)),1.5); // 50% ≈ the old loudness
+function connectOut(ctx){ // volume → soft limiter: untouched below 70%, peaks rounded off before full scale
+  const n=4097,curve=new Float32Array(n);
+  for(let i=0;i<n;i++){const v=(i/(n-1)*2-1)*2,a=Math.abs(v);curve[i]=Math.sign(v)*(a<0.7?a:0.7+0.3*Math.tanh((a-0.7)/0.3));}
+  const g=ctx.createGain(),pre=ctx.createGain(),ws=ctx.createWaveShaper();
+  g.gain.value=volGain();pre.gain.value=0.5;ws.curve=curve;ws.oversample='4x';
+  g.connect(pre);pre.connect(ws);ws.connect(ctx.destination);return g;
+}
 function audioCtx(){
   if(AC)return AC;
   const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
-  try{AC=new C();}catch(e){return null;}
+  try{AC=new C();master=connectOut(AC);}catch(e){AC=null;return null;}
   AC.onstatechange=()=>{if(AC.state==='running')scheduleBeeps();};
   return AC;
 }
@@ -1508,18 +1633,48 @@ function unlockAudio(){
   if(!audioUnlocked){try{const b=a.createBufferSource();b.buffer=a.createBuffer(1,1,22050);b.connect(a.destination);b.start(0);audioUnlocked=true;}catch(e){}}
 }
 ['pointerup','touchend','keydown','click'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
-function tone(f,at,d,v){
-  const a=AC,o=a.createOscillator(),g=a.createGain();
-  o.type='square';o.frequency.value=f;
-  g.gain.setValueAtTime(0.0001,at);
-  g.gain.exponentialRampToValueAtTime(v,at+0.01);
-  g.gain.setValueAtTime(v,Math.max(at+0.011,at+d-0.04));
-  g.gain.exponentialRampToValueAtTime(0.0001,at+d);
-  o.connect(g);g.connect(a.destination);
-  o.start(at);o.stop(at+d+0.02);
-  return o;
+function note(f,t,d,amp,type,pluck){ // one tone; pluck = struck and fading, otherwise a steady beep
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(f,t);
+  g.gain.setValueAtTime(0.0001,t);
+  if(pluck){g.gain.exponentialRampToValueAtTime(amp,t+0.006);g.gain.exponentialRampToValueAtTime(0.0001,t+d);}
+  else{g.gain.exponentialRampToValueAtTime(amp,t+0.01);g.gain.setValueAtTime(amp,Math.max(t+0.011,t+d-0.04));g.gain.exponentialRampToValueAtTime(0.0001,t+d);}
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+d+0.05);
+  return [o];
 }
-function beepPattern(t0){return [tone(1760,t0,0.16,0.25),tone(1760,t0+0.24,0.16,0.25),tone(2349,t0+0.48,0.6,0.3)];}
+function bellStrike(f,t,amp){ // metal bell: out-of-tune overtones that fade at different speeds
+  return [[1,1,1.7],[2.32,.55,1.1],[4.25,.32,.7],[6.63,.18,.45]].flatMap(([r,a,d])=>note(f*r,t,d,amp*a,'sine',true));
+}
+function whistle(t,d,amp){ // referee-style trill: a high tone wobbling fast
+  const o=AC.createOscillator(),lfo=AC.createOscillator(),depth=AC.createGain(),g=AC.createGain();
+  o.type='sine';o.frequency.setValueAtTime(2900,t);lfo.type='sine';lfo.frequency.setValueAtTime(34,t);depth.gain.setValueAtTime(170,t);
+  lfo.connect(depth);depth.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(amp,t+0.02);g.gain.setValueAtTime(amp,Math.max(t+0.021,t+d-0.05));g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  o.connect(g);g.connect(master);o.start(t);lfo.start(t);o.stop(t+d+0.05);lfo.stop(t+d+0.05);
+  return [o,lfo];
+}
+const seq=(t,notes,fn)=>notes.flatMap(([dt,f])=>fn(t+dt,f));
+const MELODIES={
+  beeps:{name:'Beeps',desc:'Classic digital timer',
+    pip:t=>note(1175,t,0.09,0.55),
+    end:t=>[...note(1760,t,0.16,0.8),...note(1760,t+0.24,0.16,0.8),...note(2349,t+0.48,0.6,0.9)]},
+  chime:{name:'Chime',desc:'Soft rising bells',
+    pip:t=>note(1568,t,0.3,0.7,'sine',true),
+    end:t=>seq(t,[[0,1046.5],[0.14,1318.5],[0.28,1568],[0.42,2093]],(tt,f)=>[...note(f,tt,1.5,1,'sine',true),...note(f*2,tt,0.6,0.25,'sine',true)])},
+  bell:{name:'Boxing bell',desc:'Three rings, like the end of a round',
+    pip:t=>note(2600,t,0.06,0.5,'sine',true),
+    end:t=>[0,0.3,0.6].flatMap(dt=>bellStrike(820,t+dt,0.8))},
+  whistle:{name:'Coach whistle',desc:'Two short blasts and a long one',
+    pip:t=>whistle(t,0.07,0.6),
+    end:t=>[...whistle(t,0.16,0.9),...whistle(t+0.26,0.16,0.9),...whistle(t+0.52,0.75,0.9)]},
+  arcade:{name:'Arcade',desc:'Quick 8-bit run up the scale',
+    pip:t=>note(988,t,0.06,0.5),
+    end:t=>[...seq(t,[[0,523.25],[0.07,659.25],[0.14,784],[0.21,1046.5],[0.28,1318.5],[0.35,1568]],(tt,f)=>note(f,tt,0.07,0.65)),...note(2093,t+0.42,0.4,0.7)]},
+  alarm:{name:'Alarm',desc:'Loud two-tone, hard to miss',
+    pip:t=>note(1480,t,0.07,0.55),
+    end:t=>[...Array(8)].flatMap((_,i)=>note(i%2?1110:1480,t+i*0.12,0.11,0.95,'sawtooth'))}
+};
+const melody=()=>MELODIES[S.settings.melody]||MELODIES.beeps;
 function cancelBeeps(){
   beepNodes.forEach(o=>{try{o.stop();}catch(e){}try{o.disconnect();}catch(e){}});
   beepNodes=[];beepsFor=0;
@@ -1529,17 +1684,28 @@ function scheduleBeeps(){
   const r=S.active&&S.active.rest;
   if(!r||r.alerted||!S.settings.sound||!AC||AC.state!=='running')return;
   const rem=(r.endsAt-Date.now())/1000;if(rem<=0.05)return;
-  const t0=AC.currentTime+rem;
-  for(const k of [3,2,1])if(rem>k+0.1)beepNodes.push(tone(1175,t0-k,0.09,0.16));
-  beepNodes.push(...beepPattern(t0));
+  const t0=AC.currentTime+rem,m=melody();
+  if(S.settings.countdown!==false)for(const k of [3,2,1])if(rem>k+0.1)beepNodes.push(...m.pip(t0-k));
+  beepNodes.push(...m.end(t0));
   beepsFor=r.endsAt;
 }
+function withAudio(fn){
+  const a=audioCtx();if(!a){toast('Sound is not supported in this browser');return;}
+  if(a.state==='running')fn(a);else a.resume().then(()=>fn(a)).catch(()=>toast('Tap again to allow sound'));
+}
+function stopPreview(){previewNodes.forEach(o=>{try{o.stop();}catch(e){}});previewNodes=[];}
+function previewMelody(k){withAudio(a=>{stopPreview();previewNodes=(MELODIES[k]||melody()).end(a.currentTime+0.05);});}
 function testSound(){
   if(S.settings.vibrate&&navigator.vibrate)try{navigator.vibrate([250,120,250,120,600]);}catch(e){}
-  const a=audioCtx();if(!a){toast('Sound is not supported in this browser');return;}
-  const go=()=>beepPattern(a.currentTime+0.05);
-  if(a.state==='running')go();else a.resume().then(go).catch(()=>toast('Tap again to allow sound'));
+  withAudio(a=>{stopPreview();const m=melody(),t=a.currentTime+0.05;
+    previewNodes=S.settings.countdown!==false?[...m.pip(t),...m.pip(t+1),...m.pip(t+2),...m.end(t+3)]:m.end(t);});
 }
+function setVolume(v){
+  S.settings.volume=Math.max(0,Math.min(100,+v||0))/100;save();
+  if(master&&AC)master.gain.setTargetAtTime(volGain(),AC.currentTime,0.02);
+  const l=$('volv');if(l)l.textContent=Math.round(S.settings.volume*100)+'%';
+}
+function setMelody(k){if(!MELODIES[k])return;S.settings.melody=k;save();render();previewMelody(k);scheduleBeeps();}
 
 /* keep the screen on during a workout, so the timer keeps running and can beep */
 let wakeLock=null,wlBusy=false;

@@ -96,7 +96,11 @@ nav button.on{color:var(--gold)}
 .set input.beat{border-color:var(--gold);color:var(--gold)}
 .set .done{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);margin-left:auto;display:grid;place-items:center;color:var(--dim)}
 .set .done.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
-.ex .addset{padding:0 14px 12px;color:var(--mute);font-size:14px;font-weight:500}
+.setbar{display:flex;gap:8px;padding:8px 14px 12px}
+.setbtn{flex:1;padding:9px 8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--mute);font-size:15px;font-weight:600}
+.setbtn:active{transform:scale(.97)}
+.setbtn:disabled{opacity:.35}
+.keepsets{display:block;margin:-4px 14px 12px;padding:2px 0;color:var(--gold);font-size:14px;font-weight:600}
 .set.isdone .n{color:var(--gold)}
 
 /* workout timer bar */
@@ -635,7 +639,7 @@ function defaultChoice(slot){ // swaps take turns: the option after the one used
   return slot.id;
 }
 function ensureEntries(ex){
-  if(!S.active.entries[ex.id]){const last=lastSessionFor(ex.id);S.active.entries[ex.id]=Array.from({length:Math.max(ex.sets,last?last.sets.length:0)},()=>({w:null,r:null,done:false}));}
+  if(!S.active.entries[ex.id])S.active.entries[ex.id]=Array.from({length:Math.max(1,ex.sets)},()=>({w:null,r:null,done:false}));
   return S.active.entries[ex.id];
 }
 function startSession(){
@@ -663,7 +667,7 @@ function viewActive(){
     const nd=o=>(S.active.entries[o.id]||[]).filter(x=>x.done).length;
     const swap=opts.length>1?`<div class="swap" role="group" aria-label="Choose the exercise">${opts.map(o=>`<button class="${o.id===ex.id?'on':''}" aria-pressed="${o.id===ex.id}" onclick="chooseEx('${slot.id}','${o.id}')">${o.id===ex.id?'':'⇄ '}${esc(o.name)}${o.oneOff?' <small>today</small>':''}${o.id!==ex.id&&nd(o)?` · ${nd(o)} ✓`:''}</button>`).join('')}</div>`:'';
     return `<div class="ex">
-      <header>${iconOf(ex)}<div class="hname"><div class="name">${esc(ex.name)}</div><div class="goal">${ex.sets} × ${ex.reps}${ex.unit==='s'?' s':''}${last?' · last '+shortDate(last.date):''}</div></div><button class="chgbtn" onclick="openChange('${slot.id}')" aria-label="Change ${esc(ex.name)}">Change</button></header>
+      <header>${iconOf(ex)}<div class="hname"><div class="name">${esc(ex.name)}</div><div class="goal">${sets.length} × ${ex.reps}${ex.unit==='s'?' s':''}${last?' · last '+shortDate(last.date):''}</div></div><button class="chgbtn" onclick="openChange('${slot.id}')" aria-label="Change ${esc(ex.name)}">Change</button></header>
       ${swap}
       <div class="sethead"><div style="text-align:center">Set</div><div>Last time</div><div style="text-align:center">kg</div><div style="text-align:center">${ex.unit==='s'?'Sec':'Reps'}</div><div></div></div>
       ${sets.map((s,i)=>{
@@ -677,7 +681,11 @@ function viewActive(){
           <input type="number" inputmode="numeric" enterkeyhint="done" data-k="r" ${att} aria-label="Set ${i+1} ${ex.unit==='s'?'seconds':'reps'}" class="${beat?'beat':''}" placeholder="${L?L.r:ex.reps}" value="${s.r??''}">
           <button class="done ${s.done?'on':''}" onclick="toggleDone('${ex.id}',${i})" aria-label="Set ${i+1} done">✓</button>
         </div>`;}).join('')}
-      <button class="addset" onclick="addSet('${ex.id}')">+ Add set</button>
+      <div class="setbar">
+        <button class="setbtn" onclick="removeSet('${ex.id}')" ${sets.length<=1?'disabled':''} aria-label="Remove the last set of ${esc(ex.name)}">− Remove set</button>
+        <button class="setbtn" onclick="addSet('${ex.id}')" aria-label="Add a set to ${esc(ex.name)}">+ Add set</button>
+      </div>
+      ${!ex.oneOff&&sets.length!==ex.sets?`<button class="keepsets" onclick="keepSets('${ex.id}')">Keep ${sets.length} ${sets.length===1?'set':'sets'} for next time</button>`:''}
     </div>`;}).join('')}
   ${cardioCard()}
   <button class="btn ghost danger block" onclick="cancelSession()">Discard workout</button>`;
@@ -741,7 +749,19 @@ function toggleDone(id,i){
   s.done=true;lastCommit={key,t:Date.now()};
   save();paintSet(id,i);paintBar();startRest(key);
 }
-function addSet(id){S.active.entries[id].push({w:null,r:null,done:false});save();render();}
+function addSet(id){const a=S.active&&S.active.entries[id];if(!a)return;a.push({w:null,r:null,done:false});save();render();}
+function removeSet(id){ // takes off the last set; asks first if it has anything in it
+  const a=S.active&&S.active.entries[id];if(!a||a.length<=1)return;
+  const n=a.length,s=a[n-1],go=()=>{a.pop();save();};
+  if(s.done||s.w!=null||s.r!=null){
+    const what=s.w!=null&&s.r!=null?`It has ${setStr(s,(exById(id)||{}).unit)} ${s.done?'logged':'typed in'}.`:'It has numbers typed in.';
+    askConfirm(`Remove set ${n}?`,what,'Remove',go);
+  }else{go();render();}
+}
+function keepSets(id){ // make today's number of sets the usual one for this exercise
+  const o=allEx().find(e=>e.id===id),a=S.active&&S.active.entries[id];if(!o||!a)return;
+  o.sets=a.length;save();render();toast(`${o.name}: ${o.sets} ${o.sets===1?'set':'sets'} from now on`);
+}
 function cancelSession(){askConfirm('Discard workout?','Nothing from this session will be saved.','Discard',()=>{S.active=null;save();cancelBeeps();syncWakeLock();});}
 function finishSession(){
   const recs=S.program.flatMap(slot=>{const cur=curEx(slot);return slotOpts(slot).filter(o=>o.id===cur.id||(S.active.entries[o.id]||[]).some(x=>x.done)).map(o=>{
